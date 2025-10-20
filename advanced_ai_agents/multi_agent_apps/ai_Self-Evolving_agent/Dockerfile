@@ -9,7 +9,7 @@ COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir streamlit \
     && pip install --no-cache-dir "git+https://github.com/EvoAgentX/EvoAgentX.git@main#egg=evoagentx" \
-    && pip install --no-cache-dir ddgs duckduckgo-search litellm telethon psycopg2-binary
+    && pip install --no-cache-dir ddgs duckduckgo-search litellm telethon psycopg2-binary feedparser
 
 COPY . /app
 
