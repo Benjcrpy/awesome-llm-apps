@@ -31,14 +31,26 @@ RUN python -m pip uninstall -y llama-index || true \
 
 COPY . /app
 
-# Runtime check + launch
-RUN printf '#!/usr/bin/env bash\nset -e\n'\
-'echo "RUNTIME which python: $(which python)"; '\
-'python -c "import sys; print(\"RUNTIME PY:\", sys.executable)"; '\
-'python -m pip show streamlit || true; '\
-'python - <<PY\nimport streamlit; print(\"RUNTIME STREAMLIT:\", streamlit.__version__)\nPY\n'\
-'exec python -m streamlit run ai_Self-Evolving_agent.py --server.address=0.0.0.0 --server.port=${PORT:-5523} --server.enableCORS=false --server.enableXsrfProtection=false\n' \
-> /app/start.sh && chmod +x /app/start.sh
+# Runtime check + launch (fixed version)
+RUN cat > /app/start.sh <<'BASH'
+#!/usr/bin/env bash
+set -e
+
+echo "RUNTIME which python: $(which python)"
+python - <<'PY'
+import sys, streamlit
+print("RUNTIME PY:", sys.executable)
+print("RUNTIME STREAMLIT:", streamlit.__version__)
+PY
+
+exec python -m streamlit run ai_Self-Evolving_agent.py \
+  --server.address=0.0.0.0 \
+  --server.port=${PORT:-5523} \
+  --server.enableCORS=false \
+  --server.enableXsrfProtection=false
+BASH
+
+RUN chmod +x /app/start.sh
 
 ENV PORT=5523
 EXPOSE 5523
