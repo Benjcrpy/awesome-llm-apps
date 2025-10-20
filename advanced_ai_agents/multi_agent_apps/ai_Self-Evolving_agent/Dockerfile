@@ -10,8 +10,10 @@ RUN pip install --no-cache-dir -r requirements.txt \
        streamlit \
        "git+https://github.com/EvoAgentX/EvoAgentX.git@main#egg=evoagentx" \
        ddgs duckduckgo-search litellm telethon psycopg2-binary feedparser tiktoken \
-       "llama-index==0.10.63" \
-       "llama-index-embeddings-azure-openai>=0.1.0"
+    && pip uninstall -y llama-index || true \
+    && pip install --no-cache-dir \
+       "llama-index-core==0.10.63" \
+       "llama-index-embeddings-azure-openai>=0.1.0,<0.2.0"
 
 COPY . /app
 
