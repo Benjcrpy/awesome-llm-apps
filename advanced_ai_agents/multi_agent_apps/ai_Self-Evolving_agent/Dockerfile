@@ -5,12 +5,13 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends git build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir streamlit \
-    && pip install --no-cache-dir "git+https://github.com/EvoAgentX/EvoAgentX.git@main#egg=evoagentx" \
-    && pip install --no-cache-dir ddgs duckduckgo-search litellm telethon psycopg2-binary feedparser \
-    && pip install --no-cache-dir llama-index llama-index-embeddings-azure-openai tiktoken
+    && pip install --no-cache-dir \
+       streamlit \
+       "git+https://github.com/EvoAgentX/EvoAgentX.git@main#egg=evoagentx" \
+       ddgs duckduckgo-search litellm telethon psycopg2-binary feedparser tiktoken \
+       "llama-index==0.10.63" \
+       "llama-index-embeddings-azure-openai>=0.1.0"
 
 COPY . /app
 
