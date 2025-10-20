@@ -4,6 +4,8 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git build-essential \
+    tk tcl \
+    libx11-6 libxext6 libxrender1 libxft2 libfontconfig1 \
  && rm -rf /var/lib/apt/lists/*
 
 RUN python -m pip install --no-cache-dir --upgrade pip
