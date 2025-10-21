@@ -1,13 +1,12 @@
 # autogen.py — compatibility shim for the AI Mental Wellbeing Agent
-# Goal: provide the names it imports: SwarmAgent, SwarmResult,
-#       initiate_swarm_chat, OpenAIWrapper, AFTER_WORK, UPDATE_SYSTEM_MESSAGE
+# Provides: SwarmAgent, SwarmResult, initiate_swarm_chat, OpenAIWrapper, AFTER_WORK, UPDATE_SYSTEM_MESSAGE
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Iterable, Union
+from typing import Any, Dict, List, Optional, Iterable, Union, Tuple
 import asyncio
 import os
 
-# 1) Try to use AG2 (autogen-agentchat) if available
+# ---------- Try AG2 first ----------
 _AG2_OK = False
 try:
     from autogen_agentchat.agents import ConversableAgent as SwarmAgent  # type: ignore
@@ -16,7 +15,7 @@ try:
 except Exception:
     _AG2_OK = False
 
-# 2) If AG2 not available, fallback to pyautogen (legacy)
+# ---------- Fallback to pyautogen (legacy) ----------
 if not _AG2_OK:
     try:
         import pyautogen  # noqa: F401
@@ -28,31 +27,20 @@ if not _AG2_OK:
             def __init__(self, *args, **kwargs): ...
         _AG2_OK = False
 
-
-# --- Compat: add no-op methods expected by the app on SwarmAgent ---
-def _noop(*args, **kwargs):
-    return None
-
-for _name in [
-    "register_hand_off",
-    "register_tool",
-    "register_action",
-    "register_reply",
-    "register_system_message_updater",
-]:
+# ---------- Add no-op methods missing in ConversableAgent ----------
+def _noop(*args, **kwargs): return None
+for _name in ["register_hand_off", "register_tool", "register_action", "register_reply", "register_system_message_updater"]:
     if not hasattr(SwarmAgent, _name):
         setattr(SwarmAgent, _name, _noop)
 
-
-# --- Types expected by the app ------------------------------------------------
+# ---------- Types ----------
 @dataclass
 class SwarmResult:
     chat_history: Optional[List[Dict[str, Any]]] = None
     summary: Optional[str] = None
     cost: Optional[Dict[str, Dict[str, Any]]] = None
 
-
-# --- initiate_swarm_chat ------------------------------------------------------
+# ---------- Helpers ----------
 def _extract_last_text(messages: Union[str, List[Dict[str, Any]]]) -> str:
     if isinstance(messages, str):
         return messages
@@ -60,71 +48,66 @@ def _extract_last_text(messages: Union[str, List[Dict[str, Any]]]) -> str:
         return messages[-1].get("content", "")
     return ""
 
-
-async def _initiate_swarm_chat_async(
-    *, initial_agent=None, messages=None, agents: Optional[Iterable[Any]] = None, **kwargs
-) -> tuple[SwarmResult, dict, dict]:
-    """
-    Best-effort async shim.
-    With AG2: run a tiny team and stream to completion.
-    Without AG2: just echo the last user message into the result.
-    """
-
-    if _AG2_OK and initial_agent is not None:
-        try:
-            team = Swarm([initial_agent, *(agents or [])])
-            task = _extract_last_text(messages or "")
-            last = None
-            async for last in team.run_stream(task=task):
-                pass
-            history = getattr(last, "messages", None)
-
-            # ✅ Ensure 2-message chat history
-            if not task:
-                task = "Please assess and support my wellbeing."
-            assistant_text = ""
-            if history and isinstance(history, list) and len(history) > 0:
-                last_msg = history[-1]
-                if isinstance(last_msg, dict):
-                    assistant_text = last_msg.get("content", "")
-                else:
-                    assistant_text = str(last_msg)
-            if not assistant_text:
-                assistant_text = "Thanks for sharing. I’ll create a supportive action plan for you."
-
-            history = [
-                {"role": "user", "content": task},
-                {"role": "assistant", "content": assistant_text},
-            ]
-
-            return (
-                SwarmResult(chat_history=history),
-                {"engine": "ollama", "model": os.getenv("OPENAI_MODEL", "llama3.2:1b")},
-                {},
-            )
-        except Exception:
-            pass  # Fallback below
-
-    # --- Fallback path (no AG2 / failed execution) ---
-    text = _extract_last_text(messages or "")
-    if not text:
-        text = "Please assess and support my wellbeing."
-    assistant_text = "Thanks for sharing. I’ll create a supportive action plan for you."
-
-    history = [
-        {"role": "user", "content": text},
+def _ensure_min_history(user_text: str, assistant_text: str) -> List[Dict[str, str]]:
+    """Always return at least 3 messages: system, user, assistant."""
+    system_msg = {
+        "role": "system",
+        "content": "You are a supportive mental wellbeing assistant. Be concise, kind, and practical."
+    }
+    if not user_text:
+        user_text = "Please assess and support my wellbeing."
+    if not assistant_text:
+        assistant_text = "Thanks for sharing. I’ll create a supportive action plan for you."
+    return [
+        system_msg,
+        {"role": "user", "content": user_text},
         {"role": "assistant", "content": assistant_text},
     ]
 
+# ---------- Core (async) ----------
+async def _initiate_swarm_chat_async(
+    *, initial_agent=None, messages=None, agents: Optional[Iterable[Any]] = None, **kwargs
+) -> Tuple[SwarmResult, dict, dict]:
+    # Try AG2 run
+    if _AG2_OK and initial_agent is not None:
+        try:
+            team = Swarm([initial_agent, *(agents or [])])
+            task_text = _extract_last_text(messages or "")
+            last = None
+            async for last in team.run_stream(task=task_text):
+                pass
+            # Try to pull assistant text from AG2; fall back if empty
+            assistant_text = ""
+            history_ag2 = getattr(last, "messages", None)
+            if isinstance(history_ag2, list) and history_ag2:
+                last_msg = history_ag2[-1]
+                if isinstance(last_msg, dict):
+                    assistant_text = last_msg.get("content", "") or ""
+                else:
+                    assistant_text = str(last_msg)
+
+            history = _ensure_min_history(task_text, assistant_text)
+            return (
+                SwarmResult(chat_history=history),
+                {"engine": os.getenv("OPENAI_BASE_URL", "http://217.15.175.196:11434/v1"),
+                 "model": os.getenv("OPENAI_MODEL", "llama3.2:1b")},
+                {},
+            )
+        except Exception:
+            pass  # fall through to safe fallback
+
+    # Safe fallback (no AG2 or AG2 failed)
+    user_text = _extract_last_text(messages or "")
+    history = _ensure_min_history(user_text, assistant_text="")
     return (
         SwarmResult(chat_history=history),
-        {"engine": "ollama", "model": os.getenv("OPENAI_MODEL", "llama3.2:1b")},
+        {"engine": os.getenv("OPENAI_BASE_URL", "http://217.15.175.196:11434/v1"),
+         "model": os.getenv("OPENAI_MODEL", "llama3.2:1b")},
         {},
     )
 
-
-def initiate_swarm_chat(*args, **kwargs) -> tuple[SwarmResult, dict, dict]:
-    """Sync wrapper to safely run async coroutine."""
+# ---------- Sync wrapper (never recursive) ----------
+def initiate_swarm_chat(*args, **kwargs) -> Tuple[SwarmResult, dict, dict]:
     try:
         loop = asyncio.get_event_loop()
     except RuntimeError:
@@ -142,14 +125,12 @@ def initiate_swarm_chat(*args, **kwargs) -> tuple[SwarmResult, dict, dict]:
     else:
         return loop.run_until_complete(_initiate_swarm_chat_async(*args, **kwargs))
 
-
-# --- OpenAIWrapper (Ollama / OpenAI compatible) ---
+# ---------- OpenAI/Ollama Wrapper ----------
 class OpenAIWrapper:
     def __init__(self, api_key: str | None = None, model: str | None = None, base_url: str | None = None):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY", "ollama")
         self.base_url = base_url or os.getenv("OPENAI_BASE_URL", "http://217.15.175.196:11434/v1")
         self.model = model or os.getenv("OPENAI_MODEL", "llama3.2:1b")
-
         try:
             from openai import OpenAI
             self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
@@ -157,7 +138,7 @@ class OpenAIWrapper:
             print("⚠️ Failed to init OpenAI/Ollama client:", e)
             self.client = None
 
-    def chat(self, messages: list[dict[str, str]]) -> str:
+    def chat(self, messages: List[Dict[str, str]]) -> str:
         if not self.client:
             return "⚠️ Client not initialized."
         try:
@@ -171,16 +152,13 @@ class OpenAIWrapper:
             print("⚠️ Chat request failed:", e)
             return f"⚠️ Error: {e}"
 
-
-# --- AFTER_WORK / UPDATE_SYSTEM_MESSAGE --------------------------------------
+# ---------- Flags ----------
 class AFTER_WORK:
     TERMINATE = "TERMINATE"
     TO_USER = "user"
-
     def __init__(self, *args, **kwargs):
         self.args = args
         self.kwargs = kwargs
-
 
 class UPDATE_SYSTEM_MESSAGE:
     def __init__(self, *args, **kwargs):
