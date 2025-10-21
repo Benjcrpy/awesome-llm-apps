@@ -65,7 +65,8 @@ def _extract_last_text(messages: Union[str, List[Dict[str, Any]]]) -> str:
         return messages[-1].get("content", "")
     return ""
 
-async def _initiate_swarm_chat_async(*, initial_agent=None, messages=None, agents: Optional[Iterable[Any]] = None, **kwargs) -> SwarmResult:
+async def _initiate_swarm_chat_async(*, initial_agent=None, messages=None, agents: Optional[Iterable[Any]] = None, **kwargs) -> tuple[SwarmResult, dict]:
+
     """
     Best-effort async shim. With AG2: run a tiny team and stream to completion.
     Without AG2: just echo the last user message into the result.
@@ -78,17 +79,19 @@ async def _initiate_swarm_chat_async(*, initial_agent=None, messages=None, agent
             async for last in team.run_stream(task=task):
                 pass
             history = getattr(last, "messages", None)
-            return SwarmResult(chat_history=history)
+            return SwarmResult(chat_history=history), {}
         except Exception:
             # Fall back silently to a minimal result
             pass
 
     # Fallback path (no AG2 or error during run)
     text = _extract_last_text(messages or "")
-    return SwarmResult(chat_history=[{"role": "user", "content": text}] if text else None)
+    return SwarmResult(chat_history=[{"role": "user", "content": text}] if text else None), {}
 
 # --- Sync wrapper that runs the async coroutine safely (no recursion) ---
-def initiate_swarm_chat(*args, **kwargs) -> SwarmResult:
+
+def initiate_swarm_chat(*args, **kwargs) -> tuple[SwarmResult, dict]:
+
     """
     Exposed sync API used by the app. It runs the async coroutine on a loop
     (uses a fresh loop if the current one is already running).
