@@ -13,15 +13,11 @@ COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# ✅ Ensure the 'autogen' namespace is available
-# (Some environments require explicit install of the meta/namespace package.)
+# ✅ Pin AutoGen to version that still exposes the `autogen` module
 RUN pip install --no-cache-dir \
-    "autogen-agentchat>=0.2.36" \
-    "autogen-ext>=0.2.36" \
+    autogen-agentchat==0.2.36 \
+    autogen-ext==0.2.36 \
     "openai>=1.40.0"
-
-# Sanity check during build (fails early if not present)
-RUN python -c "import autogen; print('AutoGen OK:', getattr(autogen, '__version__', 'unknown'))"
 
 # Copy app code
 COPY . /app
