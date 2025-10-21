@@ -263,9 +263,13 @@ Maintain an optimistic and empowering tone.
 # =========================
 st.markdown("---")
 st.markdown(
-    "<p style='text-align: center; color: gray;'>"
-    "Powered by <b>CerebraTech</b> | Modified by <b>CerebraTech</b><br>"
-    "<a href='https://cerebratech.xyz/' target='_blank'>https://cerebratech.xyz/</a>"
-    "</p>",
+    """
+    <p style='text-align: center; color: gray; font-size: 15px;'>
+        Powered by <b>CerebraTech</b> | Modified by <b>CerebraTech</b><br>
+        <a href='https://cerebratech.xyz/' target='_blank' style='text-decoration: none; color: #1E88E5;'>
+            🌐 Visit Website
+        </a>
+    </p>
+    """,
     unsafe_allow_html=True,
 )
