@@ -24,7 +24,7 @@ This application is a supportive tool and does not replace professional mental h
 - Seek immediate professional help
 """)
 
-st.title("🧠 Mental Wellbeing Agent")
+st.title("🧠 CerebraTech Mental Wellbeing Agent")
 
 st.info("""
 **Meet Your Mental Wellbeing Agent Team:**
