@@ -4,6 +4,8 @@
 
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Iterable, Union
+import asyncio
+
 
 # 1) Try to use AG2 (autogen-agentchat) if available
 _AG2_OK = False
@@ -85,6 +87,21 @@ async def initiate_swarm_chat(*, initial_agent=None, messages=None, agents: Opti
     text = _extract_last_text(messages or "")
     return SwarmResult(chat_history=[{"role": "user", "content": text}] if text else None)
 
+# --- Wrapper so the app can call initiate_swarm_chat synchronously ---
+def initiate_swarm_chat_sync(*args, **kwargs) -> SwarmResult:
+    """
+    If the app calls this function without 'await', run the coroutine and return its result.
+    """
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    # Streamlit usually has no running loop; this will just run it to completion.
+    return loop.run_until_complete(initiate_swarm_chat(*args, **kwargs))
+
+# Export the sync wrapper under the same name the app imports
+initiate_swarm_chat = initiate_swarm_chat_sync
 
 # --- OpenAIWrapper (Ollama / OpenAI compatible) ---
 import os
