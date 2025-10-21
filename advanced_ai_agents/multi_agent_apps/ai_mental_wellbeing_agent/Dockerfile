@@ -8,13 +8,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python deps from repo
+# Cache buster para siguradong rerun ang pip layer
+ARG BUILD_NOCACHE=2
+
+# Install deps from requirements.txt
 COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --upgrade -r requirements.txt
 
-# ✅ Pin AutoGen to version that still exposes the `autogen` module
-RUN pip install --no-cache-dir \
+# ✅ Force-install packages that expose/provide the `autogen` namespace
+RUN pip install --no-cache-dir --upgrade \
+    pyautogen \
     autogen-agentchat==0.2.36 \
     autogen-ext==0.2.36 \
     "openai>=1.40.0"
