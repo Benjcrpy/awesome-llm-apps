@@ -3,3 +3,4 @@ autogen-ext
 pyautogen
 streamlit
 autogen
+openai>=1.40.0
