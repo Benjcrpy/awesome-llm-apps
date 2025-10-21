@@ -1,31 +1,27 @@
 import os
 import streamlit as st
-from autogen import (
-    SwarmAgent,
-    SwarmResult,
-    initiate_swarm_chat,
-    OpenAIWrapper,
-    AFTER_WORK,
-    UPDATE_SYSTEM_MESSAGE,
-)
+from autogen import OpenAIWrapper  # uses your compat wrapper (OpenAI or Ollama)
 
-# Disable docker for autogen in this app
+# -----------------------------
+#   APP / SESSION SETUP
+# -----------------------------
 os.environ["AUTOGEN_USE_DOCKER"] = "0"
 
-# Session state
 if "output" not in st.session_state:
     st.session_state.output = {"assessment": "", "action": "", "followup": ""}
 
-# =========================
-#      SIDEBAR SETTINGS
-# =========================
+# -----------------------------
+#   SIDEBAR (Settings)
+# -----------------------------
 st.sidebar.title("⚙️ Settings")
 
-# CerebraTech branding and link
-st.sidebar.markdown("### 🌐 [Visit CerebraTech](https://cerebratech.xyz/)")
+# CerebraTech branding + link
+st.sidebar.markdown(
+    "<h3>🌐 <a href='https://cerebratech.xyz/' target='_blank' style='text-decoration:none;'>Visit CerebraTech</a></h3>",
+    unsafe_allow_html=True,
+)
 st.sidebar.divider()
 
-# Provider selector
 provider = st.sidebar.selectbox(
     "Choose an LLM Provider",
     ["-- Select Provider --", "Ollama (no key required)", "OpenAI"],
@@ -39,14 +35,18 @@ model_name = None
 if provider == "OpenAI":
     api_key = st.sidebar.text_input("Enter your OpenAI API Key", type="password")
     base_url = st.sidebar.text_input(
-        "Optional: OpenAI Base URL", value="", placeholder="leave blank for api.openai.com"
-    )
-    model_name = st.sidebar.text_input("Model", value="gpt-4o-mini")
+        "Optional: OpenAI Base URL",
+        value="",
+        placeholder="leave blank for api.openai.com",
+    ).strip() or None
+    model_name = st.sidebar.text_input("Model", value="gpt-4o-mini").strip()
 
 elif provider == "Ollama (no key required)":
     st.sidebar.info("Using **Ollama** — no API key required.")
-    base_url = st.sidebar.text_input("Ollama Base URL", value="http://217.15.175.196:11434/v1")
-    model_name = st.sidebar.text_input("Ollama Model", value="llama3.2:1b")
+    base_url = st.sidebar.text_input(
+        "Ollama Base URL", value="http://217.15.175.196:11434/v1"
+    ).strip()
+    model_name = st.sidebar.text_input("Ollama Model", value="llama3.2:1b").strip()
 
 else:
     st.sidebar.warning("⚠️ Please select an LLM provider before proceeding.")
@@ -61,9 +61,9 @@ st.sidebar.warning(
     "- Seek immediate professional help."
 )
 
-# =========================
-#        MAIN UI
-# =========================
+# -----------------------------
+#   MAIN UI
+# -----------------------------
 st.title("🧠 CerebraTech Mental Wellbeing Agent")
 
 st.info(
@@ -115,142 +115,160 @@ current_symptoms = st.multiselect(
     ],
 )
 
-# =========================
-#      VALIDATION
-# =========================
-def validate_fields():
+# -----------------------------
+#   VALIDATION
+# -----------------------------
+def validate_fields() -> list[str]:
     missing = []
     if provider == "-- Select Provider --":
         missing.append("Please select an LLM provider.")
     if provider == "OpenAI" and not api_key:
         missing.append("OpenAI API key is required for OpenAI mode.")
-    if not mental_state.strip():
+    if provider == "Ollama (no key required)":
+        if not base_url or not model_name:
+            missing.append("Ollama Base URL and Model are required in Ollama mode.")
+    if not mental_state or not mental_state.strip():
         missing.append("Please describe how you've been feeling.")
-    if not recent_changes.strip():
+    if not recent_changes or not recent_changes.strip():
         missing.append("Please describe any recent life changes.")
     if not current_symptoms:
         missing.append("Please select at least one symptom.")
     return missing
 
 
-# =========================
-#       MAIN LOGIC
-# =========================
+# -----------------------------
+#   LLM HELPERS (chain-of-3)
+# -----------------------------
+def build_llm_cfg() -> dict:
+    """
+    Uses your autogen.OpenAIWrapper. Works for both OpenAI and Ollama.
+    """
+    cfg = {"api_key": api_key or "ollama"}
+    if base_url:
+        cfg["base_url"] = base_url
+    if model_name:
+        cfg["model"] = model_name
+    return cfg
+
+
+def llm_chat(system_prompt: str, user_prompt: str, llm_cfg: dict) -> str:
+    client = OpenAIWrapper(**llm_cfg)
+    msgs = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+    return client.chat(msgs).strip()
+
+
+def user_snapshot() -> str:
+    return (
+        "USER SNAPSHOT\n"
+        f"- Emotional State: {mental_state.strip()}\n"
+        f"- Sleep: {sleep_pattern} hours/night\n"
+        f"- Stress Level: {stress_level}/10\n"
+        f"- Support System: {', '.join(support_system) if support_system else 'None reported'}\n"
+        f"- Recent Changes: {recent_changes.strip()}\n"
+        f"- Current Symptoms: {', '.join(current_symptoms)}\n"
+    )
+
+
+ASSESSMENT_SYS = (
+    "You are a licensed mental health professional. Analyze the USER SNAPSHOT.\n"
+    "Deliver a brief, empathetic clinical assessment (180–280 words) that:\n"
+    "• Identifies key themes and likely drivers (stressors, patterns, lifestyle factors)\n"
+    "• Notes risk, but avoids diagnosis\n"
+    "• Uses plain language with warmth and validation\n"
+    "• Avoids repeating the inputs verbatim; synthesize them instead\n"
+    "Format exactly:\n"
+    "## Assessment Summary\n"
+    "• Key patterns & concerns\n"
+    "• Likely contributing factors\n"
+    "• Immediate considerations (no crisis resources unless clearly needed)"
+)
+
+ACTION_SYS = (
+    "You are a crisis-intervention and skills coach. Create a **practical** 1–3 day plan (220–320 words)\n"
+    "based on the USER SNAPSHOT and the ASSESSMENT SUMMARY. Include:\n"
+    "• 3–5 concrete coping strategies (step-by-step)\n"
+    "• A simple day schedule with times (morning/afternoon/evening)\n"
+    "• Social/support actions (what to say/how to ask)\n"
+    "• ‘If overwhelmed’ mini-plan (60–120 seconds actions)\n"
+    "Be specific, realistic, and non-parroting. Use bullets.\n"
+    "Start with the heading: ## Action Plan"
+)
+
+FOLLOWUP_SYS = (
+    "You are a mental health recovery planner. Create a **4–6 week** sustainable plan (200–300 words)\n"
+    "using the USER SNAPSHOT, ASSESSMENT SUMMARY, and ACTION PLAN. Include:\n"
+    "• Weekly rhythm (habits, exercise/sleep hygiene, reflection prompts)\n"
+    "• Progress markers (how to know it's improving)\n"
+    "• Relapse-prevention checklist\n"
+    "• Gentle self-compassion framing\n"
+    "No medical diagnosis. Avoid repeating inputs verbatim.\n"
+    "Start with the heading: ## Long-term Strategy"
+)
+
+# -----------------------------
+#   MAIN ACTION
+# -----------------------------
 if st.button("Get Support Plan"):
     errors = validate_fields()
     if errors:
         for err in errors:
             st.error(err)
     else:
-        with st.spinner("🤖 The agents are analyzing your input..."):
+        with st.spinner("🤖 Generating your personalized support plan..."):
             try:
-                task = f"""
-Create a comprehensive and personalized mental health support plan based on the following details:
+                llm_cfg = build_llm_cfg()
+                snapshot = user_snapshot()
 
-Emotional State: {mental_state}
-Sleep: {sleep_pattern} hours per night
-Stress Level: {stress_level}/10
-Support System: {', '.join(support_system) if support_system else 'None reported'}
-Recent Changes: {recent_changes}
-Current Symptoms: {', '.join(current_symptoms)}
-"""
-
-                # --- Distinct prompts for unique agent outputs
-                system_messages = {
-                    "assessment_agent": """
-You are a compassionate mental health professional.
-Acknowledge the user’s courage and analyze their emotional state with empathy and insight.
-Focus on their mindset, tone, and underlying emotional needs.
-Avoid suggesting actions yet — focus purely on understanding.
-""",
-                    "action_agent": """
-You are a mental health action strategist.
-Based on the assessment, design practical, evidence-based coping methods.
-Include physical, social, and cognitive activities that fit their current stress level.
-Ensure variety — do not repeat phrases used in assessment.
-""",
-                    "followup_agent": """
-You are a recovery coach.
-Develop a structured long-term plan with check-ins, progress tracking, and self-care milestones.
-Focus on growth and prevention of relapse.
-Maintain an optimistic and empowering tone.
-""",
-                }
-
-                llm_config = {
-                    "api_key": api_key or "ollama",
-                    "base_url": base_url or None,
-                    "model": model_name,
-                }
-
-                context_variables = {"assessment": None, "action": None, "followup": None}
-
-                def update_assessment(assessment_summary, ctx):
-                    ctx["assessment"] = assessment_summary
-                    st.sidebar.success("Assessment: " + assessment_summary)
-                    return SwarmResult(agent="action_agent", context_variables=ctx)
-
-                def update_action(action_summary, ctx):
-                    ctx["action"] = action_summary
-                    st.sidebar.success("Action Plan: " + action_summary)
-                    return SwarmResult(agent="followup_agent", context_variables=ctx)
-
-                def update_followup(followup_summary, ctx):
-                    ctx["followup"] = followup_summary
-                    st.sidebar.success("Follow-up: " + followup_summary)
-                    return SwarmResult(agent="assessment_agent", context_variables=ctx)
-
-                def update_system_message_func(agent: SwarmAgent, messages):
-                    system_prompt = system_messages[agent.name]
-                    agent.client = OpenAIWrapper(**agent.llm_config)
-                    return system_prompt
-
-                state_update = UPDATE_SYSTEM_MESSAGE(update_system_message_func)
-
-                # Define agents
-                assessment_agent = SwarmAgent(
-                    "assessment_agent",
-                    llm_config=llm_config,
-                    functions=update_assessment,
-                    update_agent_state_before_reply=[state_update],
-                )
-                action_agent = SwarmAgent(
-                    "action_agent",
-                    llm_config=llm_config,
-                    functions=update_action,
-                    update_agent_state_before_reply=[state_update],
-                )
-                followup_agent = SwarmAgent(
-                    "followup_agent",
-                    llm_config=llm_config,
-                    functions=update_followup,
-                    update_agent_state_before_reply=[state_update],
+                # 1) Assessment
+                assessment_text = llm_chat(
+                    ASSESSMENT_SYS,
+                    snapshot,
+                    llm_cfg,
                 )
 
-                assessment_agent.register_hand_off(AFTER_WORK(action_agent))
-                action_agent.register_hand_off(AFTER_WORK(followup_agent))
-                followup_agent.register_hand_off(AFTER_WORK(assessment_agent))
-
-                result, _, _ = initiate_swarm_chat(
-                    initial_agent=assessment_agent,
-                    agents=[assessment_agent, action_agent, followup_agent],
-                    user_agent=None,
-                    messages=task,
-                    max_rounds=12,
+                # 2) Action Plan
+                action_prompt = (
+                    snapshot
+                    + "\n\nASSESSMENT SUMMARY:\n"
+                    + assessment_text
+                    + "\n\nCreate the action plan now."
+                )
+                action_text = llm_chat(
+                    ACTION_SYS,
+                    action_prompt,
+                    llm_cfg,
                 )
 
-                # Show outputs
+                # 3) Long-term Strategy
+                followup_prompt = (
+                    snapshot
+                    + "\n\nASSESSMENT SUMMARY:\n"
+                    + assessment_text
+                    + "\n\nACTION PLAN:\n"
+                    + action_text
+                    + "\n\nCreate the long-term strategy now."
+                )
+                followup_text = llm_chat(
+                    FOLLOWUP_SYS,
+                    followup_prompt,
+                    llm_cfg,
+                )
+
+                # Save & show
                 st.session_state.output = {
-                    "assessment": result.chat_history[-3]["content"],
-                    "action": result.chat_history[-2]["content"],
-                    "followup": result.chat_history[-1]["content"],
+                    "assessment": assessment_text,
+                    "action": action_text,
+                    "followup": followup_text,
                 }
 
-                with st.expander("🧾 Assessment Summary"):
+                with st.expander("🧾 Assessment Summary", expanded=False):
                     st.markdown(st.session_state.output["assessment"])
-                with st.expander("🛠️ Action Plan"):
+                with st.expander("🛠️ Action Plan", expanded=False):
                     st.markdown(st.session_state.output["action"])
-                with st.expander("📅 Long-term Strategy"):
+                with st.expander("📅 Long-term Strategy", expanded=False):
                     st.markdown(st.session_state.output["followup"])
 
                 st.success("✅ Personalized mental health plan generated successfully!")
@@ -258,16 +276,16 @@ Maintain an optimistic and empowering tone.
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")
 
-# =========================
-#       FOOTER
-# =========================
+# -----------------------------
+#   FOOTER
+# -----------------------------
 st.markdown("---")
 st.markdown(
     """
     <p style='text-align: center; color: gray; font-size: 15px;'>
         Powered by <b>CerebraTech</b> | Modified by <b>CerebraTech</b><br>
         <a href='https://cerebratech.xyz/' target='_blank' style='text-decoration: none; color: #1E88E5;'>
-            🌐 Visit Website
+            🌐 CerebraTech
         </a>
     </p>
     """,
