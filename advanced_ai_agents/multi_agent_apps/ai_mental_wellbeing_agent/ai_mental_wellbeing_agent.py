@@ -84,35 +84,41 @@ st.sidebar.markdown(
 )
 st.sidebar.divider()
 
-# Provider selector
-st.session_state.provider = st.sidebar.selectbox(
+# Provider selector (IMPORTANT: don't assign to session_state; just use key)
+provider_options = ["-- Select Provider --", "Ollama (no key required)", "OpenAI"]
+st.sidebar.selectbox(
     "Choose an LLM Provider",
-    ["-- Select Provider --", "Ollama (no key required)", "OpenAI"],
-    index=["-- Select Provider --", "Ollama (no key required)", "OpenAI"].index(st.session_state.provider),
-    key="provider"
+    provider_options,
+    index=provider_options.index(st.session_state.provider)
+    if st.session_state.provider in provider_options else 0,
+    key="provider",
 )
 
 if st.session_state.provider == "OpenAI":
-    st.session_state.api_key = st.sidebar.text_input(
+    st.sidebar.text_input(
         "Enter your OpenAI API Key", type="password", key="api_key"
     )
-    st.session_state.base_url = st.sidebar.text_input(
+    st.sidebar.text_input(
         "Optional: OpenAI Base URL",
         value=st.session_state.base_url or "",
         placeholder="leave blank for api.openai.com",
         key="base_url",
     )
-    st.session_state.model_name = st.sidebar.text_input(
+    st.sidebar.text_input(
         "Model", value=st.session_state.model_name or "gpt-4o-mini", key="model_name"
     )
 
 elif st.session_state.provider == "Ollama (no key required)":
     st.sidebar.info("Using **Ollama** — no API key required.")
-    st.session_state.base_url = st.sidebar.text_input(
-        "Ollama Base URL", value=st.session_state.base_url or "http://217.15.175.196:11434/v1", key="base_url"
+    st.sidebar.text_input(
+        "Ollama Base URL",
+        value=st.session_state.base_url or "http://217.15.175.196:11434/v1",
+        key="base_url",
     )
-    st.session_state.model_name = st.sidebar.text_input(
-        "Ollama Model", value=st.session_state.model_name or "llama3.2:1b", key="model_name"
+    st.sidebar.text_input(
+        "Ollama Model",
+        value=st.session_state.model_name or "llama3.2:1b",
+        key="model_name",
     )
 else:
     st.sidebar.warning("⚠️ Please select an LLM provider before proceeding.")
@@ -146,18 +152,16 @@ if history:
     with col_h2:
         if st.button("Load to form", use_container_width=True):
             selected = history[chosen_idx]
-            # Load inputs back to form keys
             for k, v in selected.get("inputs", {}).items():
                 st.session_state[k] = v
             st.success("Fields reloaded from history.")
-            st.experimental_rerun()
+            st.rerun()
     with col_h3:
         if st.button("Delete", use_container_width=True):
             _delete_history_entry(history[chosen_idx]["id"])
             st.warning("Entry deleted.")
-            st.experimental_rerun()
+            st.rerun()
     with col_h4:
-        # Export JSON for selected
         export_json = json.dumps(history[chosen_idx], ensure_ascii=False, indent=2).encode("utf-8")
         st.download_button("Export", export_json, file_name="cerebratech_entry.json", use_container_width=True)
 
@@ -180,13 +184,13 @@ st.subheader("Personal Information")
 col1, col2 = st.columns(2)
 
 with col1:
-    st.session_state.mental_state = st.text_area(
+    st.text_area(
         "How have you been feeling recently?",
         value=st.session_state.mental_state,
         placeholder="Describe your emotions, thoughts, or concerns...",
         key="mental_state",
     )
-    st.session_state.sleep_pattern = st.select_slider(
+    st.select_slider(
         "Sleep Pattern (hours per night)",
         options=[f"{i}" for i in range(0, 13)],
         value=st.session_state.sleep_pattern,
@@ -194,26 +198,26 @@ with col1:
     )
 
 with col2:
-    st.session_state.stress_level = st.slider(
+    st.slider(
         "Current Stress Level (1–10)",
         1, 10, int(st.session_state.stress_level),
         key="stress_level",
     )
-    st.session_state.support_system = st.multiselect(
+    st.multiselect(
         "Current Support System",
         ["Family", "Friends", "Therapist", "Support Groups", "None"],
         default=st.session_state.support_system,
         key="support_system",
     )
 
-st.session_state.recent_changes = st.text_area(
+st.text_area(
     "Any significant life changes or events recently?",
     value=st.session_state.recent_changes,
     placeholder="Job changes, relationships, loss, etc.",
     key="recent_changes",
 )
 
-st.session_state.current_symptoms = st.multiselect(
+st.multiselect(
     "Current Symptoms",
     [
         "Anxiety",
