@@ -125,6 +125,12 @@ class AFTER_WORK:
     TERMINATE = "TERMINATE"
     TO_USER = "user"
 
+    # accept any args/kwargs so AFTER_WORK(...) won't crash
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+
 class UPDATE_SYSTEM_MESSAGE:
     def __init__(self, *args, **kwargs):
         self.payload = kwargs or {}
+
