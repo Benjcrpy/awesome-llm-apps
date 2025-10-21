@@ -70,26 +70,37 @@ async def initiate_swarm_chat(*, initial_agent=None, messages=None, agents: Opti
     return SwarmResult(chat_history=[{"role": "user", "content": text}] if text else None)
 
 
-# --- OpenAIWrapper ------------------------------------------------------------
-# Minimal wrapper so imports succeed; used only if the app calls it.
-class OpenAIWrapper:
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
-        try:
-            from openai import OpenAI  # lazy import
-            self.client = OpenAI(api_key=api_key)
-        except Exception:
-            self.client = None
-        self.model = model
+# --- OpenAIWrapper (Ollama / OpenAI compatible) ---
+import os
 
-    def chat(self, messages: List[Dict[str, str]]) -> str:
-        if self.client is None:
-            return ""
+class OpenAIWrapper:
+    def __init__(self, api_key: str | None = None, model: str | None = None, base_url: str | None = None):
+        # Env defaults (works for both OpenAI and Ollama)
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY", "ollama")
+        self.base_url = base_url or os.getenv("OPENAI_BASE_URL", "http://217.15.175.196:11434/v1")
+        self.model = model or os.getenv("OPENAI_MODEL", "llama3.2:1b")
+
         try:
-            # OpenAI>=1.x client
-            resp = self.client.chat.completions.create(model=self.model, messages=messages)
-            return resp.choices[0].message.content or ""
-        except Exception:
-            return ""
+            from openai import OpenAI
+            self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+        except Exception as e:
+            print("⚠️ Failed to init OpenAI/Ollama client:", e)
+            self.client = None
+
+    def chat(self, messages: list[dict[str, str]]) -> str:
+        if not self.client:
+            return "⚠️ Client not initialized."
+        try:
+            resp = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                stream=False,
+            )
+            return (resp.choices[0].message.content or "").strip()
+        except Exception as e:
+            print("⚠️ Chat request failed:", e)
+            return f"⚠️ Error: {e}"
+
 
 
 # --- AFTER_WORK / UPDATE_SYSTEM_MESSAGE --------------------------------------
