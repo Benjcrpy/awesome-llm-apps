@@ -9,16 +9,23 @@ from autogen import (
     UPDATE_SYSTEM_MESSAGE,
 )
 
+# Disable docker for autogen in this app
 os.environ["AUTOGEN_USE_DOCKER"] = "0"
 
+# Session state
 if "output" not in st.session_state:
     st.session_state.output = {"assessment": "", "action": "", "followup": ""}
 
 # =========================
 #      SIDEBAR SETTINGS
 # =========================
-st.sidebar.title("Model Provider")
+st.sidebar.title("⚙️ Settings")
 
+# CerebraTech branding and link
+st.sidebar.markdown("### 🌐 [Visit CerebraTech](https://cerebratech.xyz/)")
+st.sidebar.divider()
+
+# Provider selector
 provider = st.sidebar.selectbox(
     "Choose an LLM Provider",
     ["-- Select Provider --", "Ollama (no key required)", "OpenAI"],
@@ -44,15 +51,14 @@ elif provider == "Ollama (no key required)":
 else:
     st.sidebar.warning("⚠️ Please select an LLM provider before proceeding.")
 
-# -------------------------
-#    Safety notice
-# -------------------------
+# Safety notice
 st.sidebar.warning(
     "⚠️ Important Notice\n\n"
-    "This app is a supportive tool and **not** a substitute for professional mental health care.\n\n"
-    "- If you are in crisis, call **988** (Crisis Hotline)\n"
-    "- If in danger, call **911**\n"
-    "- Seek professional help immediately."
+    "This application is a supportive tool and **not a replacement** for professional mental health care.\n\n"
+    "If you are in crisis or having thoughts of self-harm:\n\n"
+    "- Call **988** (Crisis Hotline)\n"
+    "- Call **911** (Emergency Services)\n"
+    "- Seek immediate professional help."
 )
 
 # =========================
@@ -62,9 +68,9 @@ st.title("🧠 CerebraTech Mental Wellbeing Agent")
 
 st.info(
     "**Meet Your Mental Wellbeing Agent Team:**\n\n"
-    "🧠 **Assessment Agent** – Evaluates your emotional state\n"
-    "🎯 **Action Agent** – Creates immediate action steps\n"
-    "🔄 **Follow-up Agent** – Plans your long-term wellbeing strategy"
+    "🧠 **Assessment Agent** – Evaluates your emotional and psychological state\n"
+    "🎯 **Action Agent** – Builds an immediate action plan for support\n"
+    "🔄 **Follow-up Agent** – Creates a long-term mental health strategy"
 )
 
 st.subheader("Personal Information")
@@ -149,22 +155,25 @@ Recent Changes: {recent_changes}
 Current Symptoms: {', '.join(current_symptoms)}
 """
 
-                # --- Ensure unique outputs by varying prompts slightly
+                # --- Distinct prompts for unique agent outputs
                 system_messages = {
                     "assessment_agent": """
-You are an experienced mental health professional.
-Start by acknowledging the user’s courage, then perform a detailed emotional assessment.
-Focus on empathy, psychological insight, and understanding patterns in their behavior.
+You are a compassionate mental health professional.
+Acknowledge the user’s courage and analyze their emotional state with empathy and insight.
+Focus on their mindset, tone, and underlying emotional needs.
+Avoid suggesting actions yet — focus purely on understanding.
 """,
                     "action_agent": """
 You are a mental health action strategist.
-Create a step-by-step plan with practical coping techniques, habits, and daily wellness routines.
-Avoid repeating phrases used in the assessment stage.
+Based on the assessment, design practical, evidence-based coping methods.
+Include physical, social, and cognitive activities that fit their current stress level.
+Ensure variety — do not repeat phrases used in assessment.
 """,
                     "followup_agent": """
-You are a recovery and growth specialist.
-Design a long-term wellness roadmap with realistic milestones, habit tracking, and follow-up structure.
-Ensure the tone is positive and empowering, not repetitive.
+You are a recovery coach.
+Develop a structured long-term plan with check-ins, progress tracking, and self-care milestones.
+Focus on growth and prevention of relapse.
+Maintain an optimistic and empowering tone.
 """,
                 }
 
@@ -183,7 +192,7 @@ Ensure the tone is positive and empowering, not repetitive.
 
                 def update_action(action_summary, ctx):
                     ctx["action"] = action_summary
-                    st.sidebar.success("Action: " + action_summary)
+                    st.sidebar.success("Action Plan: " + action_summary)
                     return SwarmResult(agent="followup_agent", context_variables=ctx)
 
                 def update_followup(followup_summary, ctx):
@@ -198,6 +207,7 @@ Ensure the tone is positive and empowering, not repetitive.
 
                 state_update = UPDATE_SYSTEM_MESSAGE(update_system_message_func)
 
+                # Define agents
                 assessment_agent = SwarmAgent(
                     "assessment_agent",
                     llm_config=llm_config,
@@ -243,7 +253,19 @@ Ensure the tone is positive and empowering, not repetitive.
                 with st.expander("📅 Long-term Strategy"):
                     st.markdown(st.session_state.output["followup"])
 
-                st.success("✨ Personalized mental health plan generated successfully!")
+                st.success("✅ Personalized mental health plan generated successfully!")
 
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")
+
+# =========================
+#       FOOTER
+# =========================
+st.markdown("---")
+st.markdown(
+    "<p style='text-align: center; color: gray;'>"
+    "Powered by <b>CerebraTech</b> | Modified by <b>CerebraTech</b><br>"
+    "<a href='https://cerebratech.xyz/' target='_blank'>https://cerebratech.xyz/</a>"
+    "</p>",
+    unsafe_allow_html=True,
+)
