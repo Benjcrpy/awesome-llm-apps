@@ -243,7 +243,7 @@ Ensure the tone is positive and empowering, not repetitive.
                 with st.expander("📅 Long-term Strategy"):
                     st.markdown(st.session_state.output["followup"])
 
-                st.success("✅ Personalized mental health plan generated successfully!")
+                st.success("✨ Personalized mental health plan generated successfully!")
 
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")
