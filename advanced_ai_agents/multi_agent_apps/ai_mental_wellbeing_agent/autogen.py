@@ -65,7 +65,7 @@ def _extract_last_text(messages: Union[str, List[Dict[str, Any]]]) -> str:
         return messages[-1].get("content", "")
     return ""
 
-async def initiate_swarm_chat(*, initial_agent=None, messages=None, agents: Optional[Iterable[Any]] = None, **kwargs) -> SwarmResult:  # noqa: D401
+async def _initiate_swarm_chat_async(*, initial_agent=None, messages=None, agents: Optional[Iterable[Any]] = None, **kwargs) -> SwarmResult:
     """
     Best-effort async shim. With AG2: run a tiny team and stream to completion.
     Without AG2: just echo the last user message into the result.
@@ -87,21 +87,30 @@ async def initiate_swarm_chat(*, initial_agent=None, messages=None, agents: Opti
     text = _extract_last_text(messages or "")
     return SwarmResult(chat_history=[{"role": "user", "content": text}] if text else None)
 
-# --- Wrapper so the app can call initiate_swarm_chat synchronously ---
-def initiate_swarm_chat_sync(*args, **kwargs) -> SwarmResult:
+# --- Sync wrapper that runs the async coroutine safely (no recursion) ---
+def initiate_swarm_chat(*args, **kwargs) -> SwarmResult:
     """
-    If the app calls this function without 'await', run the coroutine and return its result.
+    Exposed sync API used by the app. It runs the async coroutine on a loop
+    (uses a fresh loop if the current one is already running).
     """
     try:
         loop = asyncio.get_event_loop()
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-    # Streamlit usually has no running loop; this will just run it to completion.
-    return loop.run_until_complete(initiate_swarm_chat(*args, **kwargs))
 
-# Export the sync wrapper under the same name the app imports
-initiate_swarm_chat = initiate_swarm_chat_sync
+    if loop.is_running():
+        # Run on a fresh loop to avoid 'loop already running' issues
+        new_loop = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(new_loop)
+            return new_loop.run_until_complete(_initiate_swarm_chat_async(*args, **kwargs))
+        finally:
+            new_loop.close()
+            asyncio.set_event_loop(loop)
+    else:
+        return loop.run_until_complete(_initiate_swarm_chat_async(*args, **kwargs))
+
 
 # --- OpenAIWrapper (Ollama / OpenAI compatible) ---
 import os
