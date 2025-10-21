@@ -5,6 +5,7 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Iterable, Union
 import asyncio
+import os
 
 
 # 1) Try to use AG2 (autogen-agentchat) if available
@@ -65,7 +66,9 @@ def _extract_last_text(messages: Union[str, List[Dict[str, Any]]]) -> str:
         return messages[-1].get("content", "")
     return ""
 
-async def _initiate_swarm_chat_async(*, initial_agent=None, messages=None, agents: Optional[Iterable[Any]] = None, **kwargs) -> tuple[SwarmResult, dict, dict]:
+async def _initiate_swarm_chat_async(
+    *, initial_agent=None, messages=None, agents: Optional[Iterable[Any]] = None, **kwargs
+) -> tuple[SwarmResult, dict, dict]:
     """
     Best-effort async shim. With AG2: run a tiny team and stream to completion.
     Without AG2: just echo the last user message into the result.
@@ -78,7 +81,9 @@ async def _initiate_swarm_chat_async(*, initial_agent=None, messages=None, agent
             async for last in team.run_stream(task=task):
                 pass
             history = getattr(last, "messages", None)
-            # ---- 3 items: result, meta, extra ----
+            # ✅ ensure non-empty history
+            if not history:
+                history = [{"role": "assistant", "content": "Let's start our wellbeing check."}]
             return (
                 SwarmResult(chat_history=history),
                 {"engine": "ollama", "model": os.getenv("OPENAI_MODEL", "llama3.2:1b")},
@@ -89,16 +94,16 @@ async def _initiate_swarm_chat_async(*, initial_agent=None, messages=None, agent
 
     # Fallback path (no AG2 or error during run)
     text = _extract_last_text(messages or "")
+    # ✅ SAFE fallback (guarantees non-empty chat_history)
+    if not text:
+        text = "Hello! I'm here to support you today."
     return (
-        SwarmResult(chat_history=[{"role": "user", "content": text}] if text else None),
+        SwarmResult(chat_history=[{"role": "assistant", "content": text}]),
         {"engine": "ollama", "model": os.getenv("OPENAI_MODEL", "llama3.2:1b")},
         {},
     )
 
-# --- Sync wrapper that runs the async coroutine safely (no recursion) ---
-
 def initiate_swarm_chat(*args, **kwargs) -> tuple[SwarmResult, dict, dict]:
-
     """
     Exposed sync API used by the app. It runs the async coroutine on a loop
     (uses a fresh loop if the current one is already running).
@@ -110,7 +115,6 @@ def initiate_swarm_chat(*args, **kwargs) -> tuple[SwarmResult, dict, dict]:
         asyncio.set_event_loop(loop)
 
     if loop.is_running():
-        # Run on a fresh loop to avoid 'loop already running' issues
         new_loop = asyncio.new_event_loop()
         try:
             asyncio.set_event_loop(new_loop)
@@ -121,9 +125,6 @@ def initiate_swarm_chat(*args, **kwargs) -> tuple[SwarmResult, dict, dict]:
     else:
         return loop.run_until_complete(_initiate_swarm_chat_async(*args, **kwargs))
 
-
-# --- OpenAIWrapper (Ollama / OpenAI compatible) ---
-import os
 
 class OpenAIWrapper:
     def __init__(self, api_key: str | None = None, model: str | None = None, base_url: str | None = None):
