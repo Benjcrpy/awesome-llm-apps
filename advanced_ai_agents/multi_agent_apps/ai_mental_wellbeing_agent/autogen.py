@@ -29,6 +29,22 @@ if not _AG2_OK:
             def __init__(self, *args, **kwargs): ...
         _AG2_OK = False
 
+# --- Compat: add no-op methods expected by the app on SwarmAgent ---
+def _noop(*args, **kwargs):
+    return None
+
+# Methods the original sample expects but AG2's ConversableAgent doesn't have
+for _name in [
+    "register_hand_off",
+    "register_tool",
+    "register_action",
+    "register_reply",
+    "register_system_message_updater",
+]:
+    if not hasattr(SwarmAgent, _name):
+        setattr(SwarmAgent, _name, _noop)
+
+
 # --- Types expected by the app ------------------------------------------------
 @dataclass
 class SwarmResult:
