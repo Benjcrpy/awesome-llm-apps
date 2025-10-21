@@ -1,7 +1,7 @@
 # --- Dockerfile for AI Mental Wellbeing Agent ---
 FROM python:3.11-slim
 
-# System deps (wheels/tooling)
+# System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl && \
     rm -rf /var/lib/apt/lists/*
@@ -13,12 +13,15 @@ COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# ❗ Install AutoGen packages required by ai_mental_wellbeing_agent.py
-# The code imports from `autogen` (AgentChat v0.2+ APIs like SwarmAgent, etc.)
+# ✅ Ensure the 'autogen' namespace is available
+# (Some environments require explicit install of the meta/namespace package.)
 RUN pip install --no-cache-dir \
-    "autogen-agentchat>=0.2.32" \
-    "autogen-ext>=0.2.32" \
+    "autogen-agentchat>=0.2.36" \
+    "autogen-ext>=0.2.36" \
     "openai>=1.40.0"
+
+# Sanity check during build (fails early if not present)
+RUN python -c "import autogen; print('AutoGen OK:', getattr(autogen, '__version__', 'unknown'))"
 
 # Copy app code
 COPY . /app
