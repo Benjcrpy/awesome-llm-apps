@@ -1,6 +1,8 @@
+# EvoAgentX direct from GitHub (single pip step)
+git+https://github.com/EvoAgentX/EvoAgentX.git@main#egg=evoagentx
+
 python-dotenv>=1.0.0
 litellm>=1.55.6
-openai>=1.55.3          
 tenacity
 networkx>=3.3
 pydantic>=2.9.0,<=2.10.6
