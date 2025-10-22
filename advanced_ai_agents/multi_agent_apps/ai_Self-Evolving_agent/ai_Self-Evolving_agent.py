@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-# Gagamitin lang natin ang LiteLLM para kumonek sa Ollama (OpenAI-compatible endpoint /v1)
+# EvoAgentX core modules
 from evoagentx.models import LiteLLMConfig, LiteLLM
 from evoagentx.workflow import WorkFlowGenerator, WorkFlowGraph, WorkFlow
 from evoagentx.agents import AgentManager
@@ -9,59 +9,57 @@ from evoagentx.actions.code_extraction import CodeExtraction
 from evoagentx.actions.code_verification import CodeVerification
 from evoagentx.core.module_utils import extract_code_blocks
 
-# =========================
-# 🔑 ENV / CONFIG
-# =========================
+# ===============================
+# ⚙️ ENV SETUP
+# ===============================
 load_dotenv()
 
-# NOTE: Para sa Ollama OpenAI-compatible API, gumamit ng /v1 sa dulo.
-# Hal.: http://217.15.175.196:11434/v1
+# Ollama config (OpenAI-compatible endpoint)
 OLLAMA_API_BASE = os.getenv("OLLAMA_API_BASE", "http://217.15.175.196:11434/v1")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "ollama/llama3.2:1b")  # LiteLLM format: "ollama/<model_name>"
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "openai/llama3.2:1b")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "not-needed")  # dummy key required for 'openai' provider
 
-# =========================
-# 🧱 LLM FACTORY (Ollama)
-# =========================
+# ===============================
+# 🧠 LLM Factory (Ollama as OpenAI)
+# ===============================
 def make_ollama_llm(max_tokens: int = 4096):
     """
-    Bumubuo ng LLM client na kumakabit sa Ollama (via LiteLLM OpenAI-compatible /v1).
-    Walang API key ang kailangan.
+    Gumamit ng LiteLLM na may 'openai' provider pero naka-point sa Ollama endpoint.
     """
     cfg = LiteLLMConfig(
-        model=OLLAMA_MODEL,        # e.g., "ollama/llama3.2:1b"
-        api_base=OLLAMA_API_BASE,  # e.g., "http://217.15.175.196:11434/v1"
+        model=OLLAMA_MODEL,            # openai/llama3.2:1b
+        api_base=OLLAMA_API_BASE,      # http://217.15.175.196:11434/v1
+        openai_key=OPENAI_API_KEY,     # dummy OK
         stream=True,
         output_response=True,
         max_tokens=max_tokens,
-        # walang api_key needed for local/remote Ollama
     )
     return LiteLLM(config=cfg), cfg
 
-# ============
-# 🚀 MAIN
-# ============
+# ===============================
+# 🚀 MAIN FUNCTION
+# ===============================
 def main():
-    # 🎯 Goal (pwede mong palitan later)
     goal = "Generate html code for the Tetris game that can be played in the browser."
     target_dir = "examples/output/tetris_game"
 
-    # 1) Planner/Executor: parehong Ollama (llama3.2:1b)
+    # 1️⃣ Build LLM
     llm, llm_cfg = make_ollama_llm(max_tokens=4096)
-    wf_gen = WorkFlowGenerator(llm=llm)
 
-    # 2) PLAN
+    # 2️⃣ Generate Workflow Plan
+    wf_gen = WorkFlowGenerator(llm=llm)
     workflow_graph: WorkFlowGraph = wf_gen.generate_workflow(goal=goal)
     workflow_graph.display()
 
-    # 3) BUILD agents
+    # 3️⃣ Build Agent Manager
     agent_mgr = AgentManager()
     agent_mgr.add_agents_from_workflow(workflow_graph, llm_config=llm_cfg)
 
-    # 4) EXECUTE
+    # 4️⃣ Execute Workflow
     workflow = WorkFlow(graph=workflow_graph, agent_manager=agent_mgr, llm=llm)
     output = workflow.execute()
 
-    # 5) VERIFY — gamitin din ang Ollama (same model) para walang external keys
+    # 5️⃣ Verify Output Code
     verify_llm, verify_cfg = make_ollama_llm(max_tokens=6000)
     code_verifier = CodeVerification()
     verified = code_verifier.execute(
@@ -69,17 +67,18 @@ def main():
         inputs={"requirements": goal, "code": output}
     ).verified_code
 
-    # 6) EXTRACT → files
+    # 6️⃣ Extract Code Blocks
     os.makedirs(target_dir, exist_ok=True)
     blocks = extract_code_blocks(verified)
 
     if len(blocks) == 1:
-        path = os.path.join(target_dir, "index.html")
-        with open(path, "w", encoding="utf-8") as f:
+        file_path = os.path.join(target_dir, "index.html")
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(blocks[0])
-        print(f"✅ Tapos! Buksan mo sa browser: {path}")
+        print(f"✅ Tapos! Buksan mo sa browser: {file_path}")
         return
 
+    # 7️⃣ If multiple files, extract them all
     extractor = CodeExtraction()
     results = extractor.execute(
         llm=llm,
