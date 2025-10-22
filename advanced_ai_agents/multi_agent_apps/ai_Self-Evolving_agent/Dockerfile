@@ -1,39 +1,31 @@
 FROM python:3.11-slim
 
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
+# Minimal OS deps (keep it lean para iwas "No space left on device")
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git build-essential \
-    tk tcl \
-    libx11-6 libxext6 libxrender1 libxft2 libfontconfig1 \
  && rm -rf /var/lib/apt/lists/*
 
-RUN python -m pip install --no-cache-dir --upgrade pip
+# Upgrade pip
+RUN python -m pip install --upgrade pip
 
+# Install only the lean runtime deps (huwag 'yung mabibigat)
 COPY requirements.txt /app/
-RUN python -m pip install --no-cache-dir -r requirements.txt \
- && python -m pip install --no-cache-dir streamlit==1.36.0
+RUN python -m pip install -r requirements.txt
 
-# Build-time check (dapat makita mo sa logs: BUILD STREAMLIT 1.36.0)
-RUN python - <<'PY'
-import sys
-import streamlit
-print("BUILD PY:", sys.executable)
-print("BUILD STREAMLIT:", streamlit.__version__)
-PY
+# EvoAgentX (exactly as you used, pero iisa lang na extra line)
+RUN python -m pip install "git+https://github.com/EvoAgentX/EvoAgentX.git@main#egg=evoagentx"
 
-RUN python -m pip install --no-cache-dir \
-    "git+https://github.com/EvoAgentX/EvoAgentX.git@main#egg=evoagentx" \
-    ddgs duckduckgo-search litellm telethon psycopg2-binary feedparser tiktoken
-
-RUN python -m pip uninstall -y llama-index || true \
- && python -m pip install --no-cache-dir \
-    "llama-index-core==0.10.63" \
-    "llama-index-embeddings-azure-openai>=0.1.0,<0.2.0"
-
+# Copy source last for better caching
 COPY . /app
 
-# Runtime check + launch (fixed version)
+# Runtime check + launch
 RUN cat > /app/start.sh <<'BASH'
 #!/usr/bin/env bash
 set -e
@@ -45,6 +37,8 @@ print("RUNTIME PY:", sys.executable)
 print("RUNTIME STREAMLIT:", streamlit.__version__)
 PY
 
+# IMPORTANT:
+# Streamlit port/address; Streamlit UI only (wala nang OpenAI client dito)
 exec python -m streamlit run ai_Self-Evolving_agent.py \
   --server.address=0.0.0.0 \
   --server.port=${PORT:-5523} \
