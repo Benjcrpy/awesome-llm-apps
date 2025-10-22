@@ -135,10 +135,21 @@ if history_entries:
         entry_id = item.get("id", "")
         title = f"[{item.get('created_at','')}] • {item.get('provider','?')} • {item.get('model','?')}"
         with st.sidebar.expander(f"{idx}. {title}", expanded=False):
-            # Tiny preview of inputs
+            # --- Preview of inputs ---
             inp = item.get("inputs", {})
             st.caption(f"Stress: {inp.get('stress_level','?')}/10 • Sleep: {inp.get('sleep_pattern','?')}h")
-            st.caption(f"Symptoms: {', '.join(inp.get('current_symptoms', []))[:60]}")
+            if inp.get("current_symptoms"):
+                st.caption(f"Symptoms: {', '.join(inp.get('current_symptoms', []))[:60]}")
+
+            # --- NEW: Show generated outputs inside the sidebar entry ---
+            outs = item.get("outputs", {})
+            if outs:
+                with st.expander("🧾 Assessment Summary", expanded=False):
+                    st.markdown(outs.get("assessment", "_No assessment saved._"))
+                with st.expander("🛠️ Action Plan", expanded=False):
+                    st.markdown(outs.get("action", "_No action plan saved._"))
+                with st.expander("📅 Long-term Strategy", expanded=False):
+                    st.markdown(outs.get("followup", "_No long-term strategy saved._"))
 
             # Export single
             st.download_button(
