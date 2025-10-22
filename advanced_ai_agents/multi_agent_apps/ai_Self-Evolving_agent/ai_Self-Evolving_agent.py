@@ -14,22 +14,36 @@ from evoagentx.core.module_utils import extract_code_blocks
 # ===============================
 load_dotenv()
 
-# Ollama config (OpenAI-compatible endpoint)
-OLLAMA_API_BASE = os.getenv("OLLAMA_API_BASE", "http://217.15.175.196:11434/v1")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "openai/llama3.2:1b")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "not-needed")  # dummy key required for 'openai' provider
+API_BASE = os.getenv("OLLAMA_API_BASE", "http://217.15.175.196:11434/v1")
+RAW_MODEL = os.getenv("OLLAMA_MODEL", "openai/llama3.2:1b")   # ia-auto-fix natin kung mali
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "not-needed")    # dummy lang, required ng 'openai' provider
+
+def _normalize_openai_model(raw: str) -> str:
+    """
+    Tinatanggap:
+      - "openai/llama3.2:1b"  (ok na yan)
+      - "ollama/llama3.2:1b"  -> gagawing "openai/llama3.2:1b"
+      - "llama3.2:1b"         -> gagawing "openai/llama3.2:1b"
+    """
+    raw = (raw or "").strip()
+    if not raw:
+        return "openai/llama3.2:1b"
+    if "/" not in raw:
+        return f"openai/{raw}"
+    prefix, rest = raw.split("/", 1)
+    return f"openai/{rest}" if prefix.lower() != "openai" else raw
 
 # ===============================
-# 🧠 LLM Factory (Ollama as OpenAI)
+# 🧠 LLM Factory (Ollama via OpenAI-compatible /v1)
 # ===============================
 def make_ollama_llm(max_tokens: int = 4096):
-    """
-    Gumamit ng LiteLLM na may 'openai' provider pero naka-point sa Ollama endpoint.
-    """
+    model = _normalize_openai_model(RAW_MODEL)
+    # log para makita sa Coolify kung ano talagang ginagamit
+    print(f"[LLM] api_base={API_BASE}  model={model}")
     cfg = LiteLLMConfig(
-        model=OLLAMA_MODEL,            # openai/llama3.2:1b
-        api_base=OLLAMA_API_BASE,      # http://217.15.175.196:11434/v1
-        openai_key=OPENAI_API_KEY,     # dummy OK
+        model=model,               # e.g., "openai/llama3.2:1b"
+        api_base=API_BASE,         # e.g., "http://217.15.175.196:11434/v1"
+        openai_key=OPENAI_API_KEY, # dummy ok
         stream=True,
         output_response=True,
         max_tokens=max_tokens,
@@ -43,7 +57,7 @@ def main():
     goal = "Generate html code for the Tetris game that can be played in the browser."
     target_dir = "examples/output/tetris_game"
 
-    # 1️⃣ Build LLM
+    # 1️⃣ Build LLM (planner/executor parehong Ollama)
     llm, llm_cfg = make_ollama_llm(max_tokens=4096)
 
     # 2️⃣ Generate Workflow Plan
@@ -59,8 +73,8 @@ def main():
     workflow = WorkFlow(graph=workflow_graph, agent_manager=agent_mgr, llm=llm)
     output = workflow.execute()
 
-    # 5️⃣ Verify Output Code
-    verify_llm, verify_cfg = make_ollama_llm(max_tokens=6000)
+    # 5️⃣ Verify Output Code (Ollama din para walang external keys)
+    verify_llm, _ = make_ollama_llm(max_tokens=6000)
     code_verifier = CodeVerification()
     verified = code_verifier.execute(
         llm=verify_llm,
