@@ -8,27 +8,26 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /app
 
-# We only need 'git' so pip can install evoagentx from GitHub
-RUN apt-get update && apt-get install -y --no-install-recommends git && \
-    rm -rf /var/lib/apt/lists/*
-
-# Upgrade pip
-RUN python -m pip install --upgrade pip
-
-# Install Python deps
+# 1) Install your EXACT requirements.txt (as-is)
 COPY requirements.txt /app/
-RUN python -m pip install --no-cache-dir -r requirements.txt \
- && python -m pip install --no-cache-dir streamlit==1.36.0 \
- && python - <<'PY'\nimport streamlit; print("STREAMLIT OK:", streamlit.__version__)\nPY \
- || (echo "Streamlit install failed" && exit 1)
+RUN python -m pip install --upgrade pip && \
+    python -m pip install --no-cache-dir -r requirements.txt
 
-# Copy source last for better caching
+# 2) Install Streamlit explicitly (fixes ModuleNotFoundError)
+RUN python -m pip install --no-cache-dir streamlit==1.36.0 && \
+    python - <<'PY'\nimport streamlit; print("STREAMLIT OK:", streamlit.__version__)\nPY
+
+# 3) Install EvoAgentX from ZIP (NO git, NO apt-get)
+#    Avoids dpkg/apt "No space left on device"
+RUN python -m pip install --no-cache-dir \
+    https://github.com/EvoAgentX/EvoAgentX/archive/refs/heads/main.zip
+
+# 4) Copy app source last
 COPY . /app
 
+# 5) Run Streamlit directly
 ENV PORT=5523
 EXPOSE 5523
-
-# Run Streamlit directly (no loops)
 CMD python -m streamlit run ai_Self-Evolving_agent.py \
   --server.address=0.0.0.0 \
   --server.port=${PORT:-5523} \
