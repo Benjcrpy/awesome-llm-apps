@@ -1,4 +1,4 @@
-# EvoAgentX direct from GitHub (single pip step)
+# Lean runtime deps only (EvoAgentX + Streamlit + LiteLLM + pydantic pins)
 git+https://github.com/EvoAgentX/EvoAgentX.git@main#egg=evoagentx
 
 python-dotenv>=1.0.0
