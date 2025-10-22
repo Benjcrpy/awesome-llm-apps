@@ -37,8 +37,13 @@ def add_history_entry(entry: dict) -> None:
     entries.insert(0, entry)  # latest first
     _write_history(entries)
 
+def delete_history_entry(entry_id: str) -> None:
+    entries = _read_history()
+    entries = [e for e in entries if e.get("id") != entry_id]
+    _write_history(entries)
+
 # -----------------------------
-#   SIDEBAR (Settings)
+#   SIDEBAR (Settings + HISTORY)
 # -----------------------------
 st.sidebar.title("⚙️ Settings")
 
@@ -89,6 +94,60 @@ st.sidebar.warning(
     "- Call **911** (Emergency Services)\n"
     "- Seek immediate professional help."
 )
+
+# -----------------------------
+#   HISTORY (SIDEBAR)
+# -----------------------------
+st.sidebar.markdown("## 📜 History")
+
+history_entries = _read_history()
+st.sidebar.caption(f"Saved entries: **{len(history_entries)}**")
+
+if history_entries:
+    # Export All button
+    st.sidebar.download_button(
+        "⬇️ Export All (JSON)",
+        data=json.dumps(history_entries, indent=2, ensure_ascii=False),
+        file_name=f"ct_history_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
+        mime="application/json",
+        key="export_all",
+        use_container_width=True,
+    )
+
+    # Clear all
+    if st.sidebar.button("🧹 Clear History", key="clear_hist", use_container_width=True):
+        _write_history([])
+        st.experimental_rerun()
+
+    st.sidebar.divider()
+
+    # Compact list (latest first)
+    for idx, item in enumerate(history_entries[:20], start=1):
+        entry_id = item.get("id", "")
+        title = f"[{item.get('created_at','')}] • {item.get('provider','?')} • {item.get('model','?')}"
+        with st.sidebar.expander(f"{idx}. {title}", expanded=False):
+            # Tiny preview of inputs
+            inp = item.get("inputs", {})
+            st.caption(f"Stress: {inp.get('stress_level','?')}/10 • Sleep: {inp.get('sleep_pattern','?')}h")
+            st.caption(f"Symptoms: {', '.join(inp.get('current_symptoms', []))[:60]}")
+
+            # Export single
+            st.download_button(
+                "⬇️ Export Entry (JSON)",
+                data=json.dumps(item, indent=2, ensure_ascii=False),
+                file_name=f"ct_entry_{entry_id}.json",
+                mime="application/json",
+                key=f"dl_{entry_id}",
+                use_container_width=True,
+            )
+
+            # Delete single
+            if st.button("🗑️ Delete Entry", key=f"del_{entry_id}", use_container_width=True):
+                delete_history_entry(entry_id)
+                st.experimental_rerun()
+
+else:
+    st.sidebar.info("No history yet — generate a plan to see entries here.")
 
 # -----------------------------
 #   MAIN UI
@@ -331,50 +390,6 @@ if st.button("Get Support Plan"):
 
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")
-
-# -----------------------------
-#   HISTORY VIEWER
-# -----------------------------
-st.markdown("## 📜 History")
-history_entries = _read_history()
-
-col_h1, col_h2 = st.columns([1, 1])
-with col_h1:
-    st.caption(f"Saved entries: **{len(history_entries)}**")
-with col_h2:
-    if st.button("🗑️ Clear History"):
-        _write_history([])
-        st.experimental_rerun()
-
-if history_entries:
-    # Limit to first 10 for display
-    for idx, item in enumerate(history_entries[:10], start=1):
-        title = f"[{item.get('created_at','')}] • {item.get('provider','?')} • {item.get('model','?')}"
-        with st.expander(f"{idx}. {title}", expanded=False):
-            st.markdown("**Inputs**")
-            inp = item.get("inputs", {})
-            st.write(
-                {
-                    "Emotional State": inp.get("mental_state", ""),
-                    "Sleep (hrs)": inp.get("sleep_pattern", ""),
-                    "Stress Level": inp.get("stress_level", ""),
-                    "Support System": inp.get("support_system", []),
-                    "Recent Changes": inp.get("recent_changes", ""),
-                    "Symptoms": inp.get("current_symptoms", []),
-                }
-            )
-            st.markdown("---")
-            st.markdown("**Outputs**")
-            outs = item.get("outputs", {})
-            with st.expander("🧾 Assessment", expanded=False):
-                st.markdown(outs.get("assessment", ""))
-            with st.expander("🛠️ Action Plan", expanded=False):
-                st.markdown(outs.get("action", ""))
-            with st.expander("📅 Long-term Strategy", expanded=False):
-                st.markdown(outs.get("followup", ""))
-
-else:
-    st.info("No history yet — generate a plan to see it here.")
 
 # -----------------------------
 #   FOOTER
