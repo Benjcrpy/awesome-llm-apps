@@ -8,36 +8,29 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /app
 
-# We only add 'git' so pip can install evoagentx from GitHub (lean para iwas disk issues)
+# We only need 'git' so pip can install evoagentx from GitHub
 RUN apt-get update && apt-get install -y --no-install-recommends git && \
     rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip
 RUN python -m pip install --upgrade pip
 
-# Install all Python deps
+# Install Python deps
 COPY requirements.txt /app/
-RUN python -m pip install --no-cache-dir -r requirements.txt && \
-    python -c "import streamlit, pkgutil; print('OK: Streamlit', streamlit.__version__)" && \
-    python -m pip cache purge || true
+RUN python -m pip install --no-cache-dir -r requirements.txt \
+ && python -m pip install --no-cache-dir streamlit==1.36.0 \
+ && python - <<'PY'\nimport streamlit; print("STREAMLIT OK:", streamlit.__version__)\nPY \
+ || (echo "Streamlit install failed" && exit 1)
 
-# Copy app source last for better caching
+# Copy source last for better caching
 COPY . /app
-
-# Start script (Streamlit)
-RUN printf '%s\n' \
-'#!/usr/bin/env bash' \
-'set -e' \
-'echo "RUNTIME which python: $(which python)"' \
-'python - <<PY' \
-'import sys, streamlit' \
-'print("RUNTIME PY:", sys.executable)' \
-'print("RUNTIME STREAMLIT:", streamlit.__version__)' \
-'PY' \
-'exec python -m streamlit run ai_Self-Evolving_agent.py --server.address=0.0.0.0 --server.port=${PORT:-5523} --server.enableCORS=false --server.enableXsrfProtection=false' \
-> /app/start.sh && chmod +x /app/start.sh
 
 ENV PORT=5523
 EXPOSE 5523
 
-ENTRYPOINT ["/app/start.sh"]
+# Run Streamlit directly (no loops)
+CMD python -m streamlit run ai_Self-Evolving_agent.py \
+  --server.address=0.0.0.0 \
+  --server.port=${PORT:-5523} \
+  --server.enableCORS=false \
+  --server.enableXsrfProtection=false
