@@ -42,6 +42,16 @@ def delete_history_entry(entry_id: str) -> None:
     entries = [e for e in entries if e.get("id") != entry_id]
     _write_history(entries)
 
+def _safe_rerun():
+    """Use st.rerun() for modern Streamlit; fall back to experimental_rerun if older."""
+    try:
+        st.rerun()
+    except Exception:
+        try:
+            st.experimental_rerun()  # fallback for very old versions
+        except Exception:
+            pass
+
 # -----------------------------
 #   SIDEBAR (Settings + HISTORY)
 # -----------------------------
@@ -116,7 +126,7 @@ if history_entries:
     # Clear all
     if st.sidebar.button("🧹 Clear History", key="clear_hist", use_container_width=True):
         _write_history([])
-        st.experimental_rerun()
+        _safe_rerun()
 
     st.sidebar.divider()
 
@@ -143,7 +153,7 @@ if history_entries:
             # Delete single
             if st.button("🗑️ Delete Entry", key=f"del_{entry_id}", use_container_width=True):
                 delete_history_entry(entry_id)
-                st.experimental_rerun()
+                _safe_rerun()
 else:
     st.sidebar.info("No history yet — generate a plan to see entries here.")
 
@@ -356,8 +366,7 @@ if st.button("Get Support Plan"):
                     }
                 )
 
-                # Force an immediate rerun so the new entry appears in the sidebar
-                st.experimental_rerun()
+                _safe_rerun()
 
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")
