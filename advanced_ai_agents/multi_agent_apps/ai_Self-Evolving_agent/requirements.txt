@@ -1,4 +1,4 @@
-# Lean runtime deps only (EvoAgentX + Streamlit + LiteLLM + pydantic pins)
+# EvoAgentX direct from GitHub (needs git)
 git+https://github.com/EvoAgentX/EvoAgentX.git@main#egg=evoagentx
 
 python-dotenv>=1.0.0
@@ -9,4 +9,3 @@ pydantic>=2.9.0,<=2.10.6
 pydantic-settings==2.8.1
 pydantic_core>=2.23.2,<=2.27.2
 loguru>=0.7.3
-streamlit==1.36.0
