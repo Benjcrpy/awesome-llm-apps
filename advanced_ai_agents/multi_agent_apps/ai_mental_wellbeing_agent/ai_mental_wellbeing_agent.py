@@ -81,7 +81,6 @@ elif provider == "Ollama (no key required)":
         "Ollama Base URL", value="http://217.15.175.196:11434/v1", key="ollama_base"
     ).strip()
     model_name = st.sidebar.text_input("Ollama Model", value="llama3.2:1b", key="ollama_model").strip()
-
 else:
     st.sidebar.warning("⚠️ Please select an LLM provider before proceeding.")
 
@@ -145,7 +144,6 @@ if history_entries:
             if st.button("🗑️ Delete Entry", key=f"del_{entry_id}", use_container_width=True):
                 delete_history_entry(entry_id)
                 st.experimental_rerun()
-
 else:
     st.sidebar.info("No history yet — generate a plan to see entries here.")
 
@@ -228,21 +226,17 @@ def validate_fields() -> list[str]:
         missing.append("Please select at least one symptom.")
     return missing
 
-
 # -----------------------------
 #   LLM HELPERS (chain-of-3)
 # -----------------------------
 def build_llm_cfg() -> dict:
-    """
-    Uses your autogen.OpenAIWrapper. Works for both OpenAI and Ollama.
-    """
+    """Uses your autogen.OpenAIWrapper. Works for both OpenAI and Ollama."""
     cfg = {"api_key": api_key or "ollama"}
     if base_url:
         cfg["base_url"] = base_url
     if model_name:
         cfg["model"] = model_name
     return cfg
-
 
 def llm_chat(system_prompt: str, user_prompt: str, llm_cfg: dict) -> str:
     client = OpenAIWrapper(**llm_cfg)
@@ -251,7 +245,6 @@ def llm_chat(system_prompt: str, user_prompt: str, llm_cfg: dict) -> str:
         {"role": "user", "content": user_prompt},
     ]
     return client.chat(msgs).strip()
-
 
 def user_snapshot() -> str:
     return (
@@ -263,7 +256,6 @@ def user_snapshot() -> str:
         f"- Recent Changes: {recent_changes.strip()}\n"
         f"- Current Symptoms: {', '.join(current_symptoms)}\n"
     )
-
 
 ASSESSMENT_SYS = (
     "You are a licensed mental health professional. Analyze the USER SNAPSHOT.\n"
@@ -316,11 +308,7 @@ if st.button("Get Support Plan"):
                 snapshot = user_snapshot()
 
                 # 1) Assessment
-                assessment_text = llm_chat(
-                    ASSESSMENT_SYS,
-                    snapshot,
-                    llm_cfg,
-                )
+                assessment_text = llm_chat(ASSESSMENT_SYS, snapshot, llm_cfg)
 
                 # 2) Action Plan
                 action_prompt = (
@@ -329,11 +317,7 @@ if st.button("Get Support Plan"):
                     + assessment_text
                     + "\n\nCreate the action plan now."
                 )
-                action_text = llm_chat(
-                    ACTION_SYS,
-                    action_prompt,
-                    llm_cfg,
-                )
+                action_text = llm_chat(ACTION_SYS, action_prompt, llm_cfg)
 
                 # 3) Long-term Strategy
                 followup_prompt = (
@@ -344,22 +328,16 @@ if st.button("Get Support Plan"):
                     + action_text
                     + "\n\nCreate the long-term strategy now."
                 )
-                followup_text = llm_chat(
-                    FOLLOWUP_SYS,
-                    followup_prompt,
-                    llm_cfg,
-                )
+                followup_text = llm_chat(FOLLOWUP_SYS, followup_prompt, llm_cfg)
 
-                # Save to session
+                # Save to session (so it persists across rerun)
                 st.session_state.output = {
                     "assessment": assessment_text,
                     "action": action_text,
                     "followup": followup_text,
                 }
 
-                # -----------------------------
-                #   SAVE TO HISTORY (auto)
-                # -----------------------------
+                # ---- SAVE TO HISTORY then force refresh sidebar ----
                 add_history_entry(
                     {
                         "id": str(uuid.uuid4()),
@@ -378,18 +356,23 @@ if st.button("Get Support Plan"):
                     }
                 )
 
-                # Show results
-                with st.expander("🧾 Assessment Summary", expanded=False):
-                    st.markdown(st.session_state.output["assessment"])
-                with st.expander("🛠️ Action Plan", expanded=False):
-                    st.markdown(st.session_state.output["action"])
-                with st.expander("📅 Long-term Strategy", expanded=False):
-                    st.markdown(st.session_state.output["followup"])
-
-                st.success("✅ Personalized mental health plan generated and saved to history!")
+                # Force an immediate rerun so the new entry appears in the sidebar
+                st.experimental_rerun()
 
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")
+
+# -----------------------------
+#   DISPLAY OUTPUT IF AVAILABLE
+# -----------------------------
+if any(st.session_state.output.values()):
+    with st.expander("🧾 Assessment Summary", expanded=False):
+        st.markdown(st.session_state.output["assessment"])
+    with st.expander("🛠️ Action Plan", expanded=False):
+        st.markdown(st.session_state.output["action"])
+    with st.expander("📅 Long-term Strategy", expanded=False):
+        st.markdown(st.session_state.output["followup"])
+    st.success("✅ Personalized mental health plan generated and saved to history!")
 
 # -----------------------------
 #   FOOTER
