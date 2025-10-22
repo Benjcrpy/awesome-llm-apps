@@ -8,13 +8,20 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /app
 
-# Install ALL deps in a single layer (from requirements.txt)
+# We only add 'git' so pip can install evoagentx from GitHub (lean para iwas disk issues)
+RUN apt-get update && apt-get install -y --no-install-recommends git && \
+    rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip
+RUN python -m pip install --upgrade pip
+
+# Install all Python deps
 COPY requirements.txt /app/
-RUN python -m pip install --upgrade pip && \
-    python -m pip install --no-cache-dir -r requirements.txt && \
+RUN python -m pip install --no-cache-dir -r requirements.txt && \
+    python -c "import streamlit, pkgutil; print('OK: Streamlit', streamlit.__version__)" && \
     python -m pip cache purge || true
 
-# Copy source last for better caching
+# Copy app source last for better caching
 COPY . /app
 
 # Start script (Streamlit)
