@@ -5,6 +5,14 @@ from datetime import datetime
 import streamlit as st
 from autogen import OpenAIWrapper  # uses your compat wrapper (OpenAI or Ollama)
 
+
+st.set_page_config(
+    page_title="CerebraTech Wellbeing Agent 🧠",   
+    page_icon="🧠",                               
+    layout="wide",                                
+    initial_sidebar_state="expanded"              
+)
+
 # -----------------------------
 #   APP / SESSION SETUP
 # -----------------------------
