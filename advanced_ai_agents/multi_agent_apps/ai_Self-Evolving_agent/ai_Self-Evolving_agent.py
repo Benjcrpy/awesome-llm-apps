@@ -1,86 +1,101 @@
-import os 
-from dotenv import load_dotenv 
-from evoagentx.models import OpenAILLMConfig, OpenAILLM, LiteLLMConfig, LiteLLM
+import os
+from dotenv import load_dotenv
+from evoagentx.models import (
+    OpenAILLMConfig, OpenAILLM,
+    LiteLLMConfig, LiteLLM
+)
 from evoagentx.workflow import WorkFlowGenerator, WorkFlowGraph, WorkFlow
 from evoagentx.agents import AgentManager
 from evoagentx.actions.code_extraction import CodeExtraction
-from evoagentx.actions.code_verification import CodeVerification 
+from evoagentx.actions.code_verification import CodeVerification
 from evoagentx.core.module_utils import extract_code_blocks
 
-load_dotenv() # Loads environment variables from .env file
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") 
+load_dotenv()
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+
+def make_openai_llm():
+    cfg = OpenAILLMConfig(
+        model="gpt-4o-mini",
+        openai_key=OPENAI_API_KEY,
+        stream=True,
+        output_response=True,
+        max_tokens=8000,
+    )
+    return OpenAILLM(config=cfg), cfg
+
+def make_claude_llm():
+    if not ANTHROPIC_API_KEY:
+        raise RuntimeError("Walang ANTHROPIC_API_KEY para sa fallback.")
+    cfg = LiteLLMConfig(
+        model="anthropic/claude-3-7-sonnet-20250219",
+        anthropic_key=ANTHROPIC_API_KEY,
+        stream=True,
+        output_response=True,
+        max_tokens=10000,
+    )
+    return LiteLLM(config=cfg), cfg
+
+def plan_with_fallback(goal):
+    llm, cfg = make_openai_llm()
+    gen = WorkFlowGenerator(llm=llm)
+    try:
+        graph = gen.generate_workflow(goal=goal)
+        return graph, llm, cfg
+    except Exception as e:
+        if "429" in str(e) or "insufficient_quota" in str(e):
+            print("⚠️ Naubos quota sa OpenAI, lilipat tayo sa Claude...")
+            fb_llm, fb_cfg = make_claude_llm()
+            fb_gen = WorkFlowGenerator(llm=fb_llm)
+            graph = fb_gen.generate_workflow(goal=goal)
+            return graph, fb_llm, fb_cfg
+        raise e
 
 def main():
-
-    # LLM configuration
-    openai_config = OpenAILLMConfig(model="gpt-4o-mini", openai_key=OPENAI_API_KEY, stream=True, output_response=True, max_tokens=16000)
-    # Initialize the language model
-    llm = OpenAILLM(config=openai_config)
-
     goal = "Generate html code for the Tetris game that can be played in the browser."
-    target_directory = "examples/output/tetris_game"
-    
-    wf_generator = WorkFlowGenerator(llm=llm)
-    workflow_graph: WorkFlowGraph = wf_generator.generate_workflow(goal=goal)
+    target = "examples/output/tetris_game"
+    graph, llm, cfg = plan_with_fallback(goal)
 
-    # [optional] display workflow
-    workflow_graph.display()
-    # [optional] save workflow 
-    # workflow_graph.save_module(f"{target_directory}/workflow_demo_4o_mini.json")
-    #[optional] load saved workflow 
-    # workflow_graph: WorkFlowGraph = WorkFlowGraph.from_file(f"{target_directory}/workflow_demo_4o_mini.json")
-
-    agent_manager = AgentManager()
-    agent_manager.add_agents_from_workflow(workflow_graph, llm_config=openai_config)
-
-    workflow = WorkFlow(graph=workflow_graph, agent_manager=agent_manager, llm=llm)
+    graph.display()
+    manager = AgentManager()
+    manager.add_agents_from_workflow(graph, llm_config=cfg)
+    workflow = WorkFlow(graph=graph, agent_manager=manager, llm=llm)
     output = workflow.execute()
-    
-    # verfiy the code
-    verification_llm_config = LiteLLMConfig(model="anthropic/claude-3-7-sonnet-20250219", anthropic_key=ANTHROPIC_API_KEY, stream=True, output_response=True, max_tokens=20000)
-    verification_llm = LiteLLM(config=verification_llm_config)
-    
-    code_verifier = CodeVerification()
-    output = code_verifier.execute(
-        llm = verification_llm, 
-        inputs={
-            "requirements": goal, 
-            "code": output
-        }
-    ).verified_code
 
-    # extract the code 
-    os.makedirs(target_directory, exist_ok=True)
-    code_blocks = extract_code_blocks(output)
-    if len(code_blocks) == 1:
-        file_path = os.path.join(target_directory, "index.html")
-        with open(file_path, "w") as f:
-            f.write(code_blocks[0])
-        print(f"You can open this HTML file in a browser to play the Tetris game: {file_path}")
+    if not ANTHROPIC_API_KEY:
+        verified = output
+    else:
+        verify_cfg = LiteLLMConfig(
+            model="anthropic/claude-3-7-sonnet-20250219",
+            anthropic_key=ANTHROPIC_API_KEY,
+            stream=True,
+            output_response=True,
+            max_tokens=20000,
+        )
+        verify_llm = LiteLLM(config=verify_cfg)
+        verify = CodeVerification()
+        verified = verify.execute(
+            llm=verify_llm, inputs={"requirements": goal, "code": output}
+        ).verified_code
+
+    os.makedirs(target, exist_ok=True)
+    blocks = extract_code_blocks(verified)
+
+    if len(blocks) == 1:
+        path = os.path.join(target, "index.html")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(blocks[0])
+        print(f"✅ Tapos! Buksan sa browser: {path}")
         return
-    
-    code_extractor = CodeExtraction()
-    results = code_extractor.execute(
-        llm=llm, 
-        inputs={
-            "code_string": output, 
-            "target_directory": target_directory,
-        }
-    )
 
-    print(f"Extracted {len(results.extracted_files)} files:")
-    for filename, path in results.extracted_files.items():
-        print(f"  - {filename}: {path}")
-    
-    if results.main_file:
-        print(f"\nMain file: {results.main_file}")
-        file_type = os.path.splitext(results.main_file)[1].lower()
-        if file_type == '.html':
-            print(f"You can open this HTML file in a browser to play the Tetris game")
-        else:
-            print(f"This is the main entry point for your application")
-    
+    extractor = CodeExtraction()
+    result = extractor.execute(llm=llm, inputs={"code_string": verified, "target_directory": target})
+    print(f"Extracted {len(result.extracted_files)} files:")
+    for name, path in result.extracted_files.items():
+        print(f"  - {name}: {path}")
+    if result.main_file:
+        print(f"\nMain file: {result.main_file}")
 
 if __name__ == "__main__":
     main()
