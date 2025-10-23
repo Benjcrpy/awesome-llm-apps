@@ -8,10 +8,9 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /app
 
-# System deps incl. Tk (for tkinter) + xvfb + xauth (for headless GUI)
+# Lean system deps only
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl ca-certificates \
-    python3-tk tk tcl xvfb xauth \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip
@@ -28,13 +27,12 @@ RUN python -m pip install --no-cache-dir \
 # App source
 COPY . /app
 
-# Ollama config (better: set in Coolify env screen)
+# Ollama config (tip: set secrets in Coolify env, not baked here)
 ENV OLLAMA_BASE_URL="http://217.15.175.196:11434/v1" \
-    OLLAMA_MODEL="llama3.2:1b" \
-    OLLAMA_API_KEY="ollama"
+    OLLAMA_MODEL="llama3.2:1b"
 
 # Clean caches
 RUN rm -rf /root/.cache
 
-# Headless run (Tk needs X)
-CMD ["bash", "-lc", "xvfb-run -a -s '-screen 0 1024x768x24' python ai_Self-Evolving_agent.py"]
+# Worker app (no GUI, no X needed)
+CMD ["python", "ai_Self-Evolving_agent.py"]
