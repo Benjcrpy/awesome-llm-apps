@@ -30,11 +30,8 @@ matplotlib>=3.10.0
 # torch==2.2.1 
 # torchvision==0.17.1 
 # torchaudio==2.2.1
-transformers>=4.47.1
-datasets>=3.4.0
 faiss-cpu==1.8.0.post1
-textgrad>=0.1.8
-llama-index>=0.10.50
+llama-index-core==0.10.50
 llama-index-embeddings-azure-openai>=0.1.0
 
 # fast api dependencies
