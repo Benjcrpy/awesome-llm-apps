@@ -11,7 +11,7 @@ WORKDIR /app
 # Lean system deps + Tk + Xvfb for headless GUI
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl ca-certificates \
-    python3-tk tk tcl xvfb \
+    python3-tk tk tcl xvfb xauth \
     && rm -rf /var/lib/apt/lists/*
 
 # 1) CPU-only Torch (avoid CUDA blobs)
