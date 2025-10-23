@@ -84,7 +84,7 @@ ll_core_emb = types.ModuleType("llama_index.core.embeddings")
 ll_core_graph = types.ModuleType("llama_index.core.graph_stores")
 ll_core_graph_types = types.ModuleType("llama_index.core.graph_stores.types")
 ll_core_graph_simple = types.ModuleType("llama_index.core.graph_stores.simple")
-# NEW: vector store modules
+# Vector store modules
 ll_core_vector = types.ModuleType("llama_index.core.vector_stores")
 ll_core_vector_types = types.ModuleType("llama_index.core.vector_stores.types")
 
@@ -151,9 +151,14 @@ ll_core_graph_types.GraphStore = _StubGraphStore
 ll_core_graph_simple.GraphStore = _StubGraphStore
 
 # ----- vector stores (types) -----
-class _StubVectorStore:
+class BasePydanticVectorStore:
+    """Dummy base to satisfy evoagentx.storages.vectore_stores.base import."""
+    def __init__(self, *args, **kwargs): pass
+
+class _StubVectorStore(BasePydanticVectorStore):
     """Ultra-minimal VectorStore API to satisfy evoagentx imports."""
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._docs = []  # (id, embedding, metadata)
     def add(self, nodes=None, embeddings=None, ids=None, metadatas=None, **kwargs):
         nodes = nodes or []
@@ -166,7 +171,8 @@ class _StubVectorStore:
     def query(self, query_embedding=None, top_k: int = 5, **kwargs):
         # return empty results; evoagentx won't rely on real vectors in this setup
         return []
-    # Some libs expect as type but never call
+
+ll_core_vector_types.BasePydanticVectorStore = BasePydanticVectorStore
 ll_core_vector_types.VectorStore = _StubVectorStore
 
 # ----- azure_openai embeddings -----
@@ -188,10 +194,8 @@ sys.modules['llama_index.core.embeddings'] = ll_core_emb
 sys.modules['llama_index.core.graph_stores'] = ll_core_graph
 sys.modules['llama_index.core.graph_stores.types'] = ll_core_graph_types
 sys.modules['llama_index.core.graph_stores.simple'] = ll_core_graph_simple
-# NEW:
 sys.modules['llama_index.core.vector_stores'] = ll_core_vector
 sys.modules['llama_index.core.vector_stores.types'] = ll_core_vector_types
-
 sys.modules['llama_index.embeddings'] = ll_emb
 sys.modules['llama_index.embeddings.azure_openai'] = ll_az
 
@@ -200,12 +204,12 @@ ll_pkg.core = ll_core
 ll_core.schema = ll_schema
 ll_core.embeddings = ll_core_emb
 ll_core.graph_stores = ll_core_graph
-ll_core_vector.types = ll_core_vector_types
 ll_core.graph_stores.types = ll_core_graph_types
 ll_core.graph_stores.simple = ll_core_graph_simple
+ll_core.vector_stores = ll_core_vector
+ll_core_vector.types = ll_core_vector_types
 ll_pkg.embeddings = ll_emb
 ll_emb.azure_openai = ll_az
-ll_core.vector_stores = ll_core_vector
 # =========================
 #  END HARD STUBS
 # =========================
