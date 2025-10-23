@@ -1,6 +1,3 @@
-# ===== HEADLESS + LLAMA-INDEX ONE-STUB-TO-RULE-THEM-ALL =====
-# I-paste itong buong file bilang ai_Self-Evolving_agent.py
-# Ginagawa nitong no-op ang tkinter at llama_index para tumakbo ang EvoAgentX nang headless
 import sys, types
 
 # --- Tkinter stubs (para hindi maghanap ng X/GUI) ---
