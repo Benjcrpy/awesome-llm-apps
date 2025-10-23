@@ -8,11 +8,6 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /app
 
-# Lean system deps only
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential curl ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
 # Upgrade pip
 RUN python -m pip install --upgrade pip
 
@@ -27,12 +22,12 @@ RUN python -m pip install --no-cache-dir \
 # Copy app source last (better caching)
 COPY . /app
 
-# Ollama config (set these in Coolify env ideally; safe defaults here)
+# Ollama config (set in Coolify env ideally)
 ENV OLLAMA_BASE_URL="http://217.15.175.196:11434/v1" \
     OLLAMA_MODEL="llama3.2:1b"
 
 # Clean caches
 RUN rm -rf /root/.cache
 
-# Worker entrypoint (no GUI, headless)
+# Headless run (tkinter is stubbed in your .py)
 CMD ["python", "ai_Self-Evolving_agent.py"]
