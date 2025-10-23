@@ -8,30 +8,27 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /app
 
-# Lean system deps + Tk + Xvfb for headless GUI
+# System deps incl. Tk (for tkinter) + xvfb + xauth (for headless GUI)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl ca-certificates \
     python3-tk tk tcl xvfb xauth \
     && rm -rf /var/lib/apt/lists/*
 
-# 1) CPU-only Torch (avoid CUDA blobs)
-RUN python -m pip install --upgrade pip && \
-    python -m pip install --no-cache-dir \
-      --index-url https://download.pytorch.org/whl/cpu \
-      torch==2.4.1+cpu torchvision==0.19.1+cpu torchaudio==2.4.1+cpu
+# Upgrade pip
+RUN python -m pip install --upgrade pip
 
-# 2) Project deps
+# Project deps
 COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --no-cache-dir -r /app/requirements.txt
 
-# 3) EvoAgentX lib
+# EvoAgentX lib
 RUN python -m pip install --no-cache-dir \
       https://github.com/EvoAgentX/EvoAgentX/archive/refs/heads/main.zip
 
-# 4) Copy source
+# App source
 COPY . /app
 
-# Ollama config (set real values in Coolify env if you prefer)
+# Ollama config (better: set in Coolify env screen)
 ENV OLLAMA_BASE_URL="http://217.15.175.196:11434/v1" \
     OLLAMA_MODEL="llama3.2:1b" \
     OLLAMA_API_KEY="ollama"
@@ -39,5 +36,5 @@ ENV OLLAMA_BASE_URL="http://217.15.175.196:11434/v1" \
 # Clean caches
 RUN rm -rf /root/.cache
 
-# Run under Xvfb so Tkinter won't crash in headless
-CMD ["bash", "-lc", "xvfb-run -a python ai_Self-Evolving_agent.py"]
+# Headless run (Tk needs X)
+CMD ["bash", "-lc", "xvfb-run -a -s '-screen 0 1024x768x24' python ai_Self-Evolving_agent.py"]
