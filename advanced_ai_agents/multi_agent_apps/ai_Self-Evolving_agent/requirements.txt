@@ -1,6 +1,5 @@
 # === runtime deps for self-evolving agent (lean, no CUDA/torch, no heavy extras) ===
 openai>=1.55.3
-litellm>=1.55.6
 httpx>=0.24.1
 python-dotenv>=1.0.0
 
