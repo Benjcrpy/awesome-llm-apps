@@ -15,8 +15,8 @@ RUN python -m pip install --upgrade pip
 COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --no-cache-dir -r /app/requirements.txt
 
-# Install EvoAgentX from zip
-RUN python -m pip install --no-cache-dir \
+# Install EvoAgentX from zip WITHOUT deps to avoid huge downloads (CUDA/llama-index, etc.)
+RUN python -m pip install --no-cache-dir --no-deps \
     https://github.com/EvoAgentX/EvoAgentX/archive/refs/heads/main.zip
 
 # Copy app source
