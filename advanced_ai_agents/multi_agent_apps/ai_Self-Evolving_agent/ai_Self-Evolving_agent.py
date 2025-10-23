@@ -1,16 +1,39 @@
-# ---- Headless hack: stub out tkinter so EvoAgentX HITL GUI imports don't require X ----
+# ---- Headless hack: stub tkinter (HITL GUI) ----
 import sys, types
 if 'tkinter' not in sys.modules:
     sys.modules['tkinter'] = types.ModuleType('tkinter')
     sys.modules['tkinter.ttk'] = types.ModuleType('tkinter.ttk')
     sys.modules['tkinter.filedialog'] = types.ModuleType('tkinter.filedialog')
-# ---------------------------------------------------------------------------------------
+# ------------------------------------------------
+
+# ---- STUB for llama_index.embeddings.azure_openai (avoid installing llama-index) ----
+ll_pkg = types.ModuleType("llama_index")
+ll_emb = types.ModuleType("llama_index.embeddings")
+ll_az  = types.ModuleType("llama_index.embeddings.azure_openai")
+
+class AzureOpenAIEmbedding:
+    def __init__(self, *args, **kwargs): pass
+    def get_text_embedding(self, text: str): return [0.0]
+    def get_text_embedding_batch(self, texts): return [[0.0] for _ in texts]
+
+class AzureOpenAIEmbeddingModel:
+    text_embedding_3_large = "text-embedding-3-large"
+    text_embedding_3_small = "text-embedding-3-small"
+
+ll_az.AzureOpenAIEmbedding = AzureOpenAIEmbedding
+ll_az.AzureOpenAIEmbeddingModel = AzureOpenAIEmbeddingModel
+sys.modules['llama_index'] = ll_pkg
+sys.modules['llama_index.embeddings'] = ll_emb
+sys.modules['llama_index.embeddings.azure_openai'] = ll_az
+ll_pkg.embeddings = ll_emb
+ll_emb.azure_openai = ll_az
+# -----------------------------------------------------------------------------
 
 import os
 from dotenv import load_dotenv
 
-# EvoAgentX imports (unchanged logic)
-from evoagentx.models import OpenAILLMConfig, OpenAILLM, LiteLLMConfig, LiteLLM
+# ✅ EvoAgentX imports — REMOVE LiteLLM here
+from evoagentx.models import OpenAILLMConfig, OpenAILLM
 from evoagentx.workflow import WorkFlowGenerator, WorkFlowGraph, WorkFlow
 from evoagentx.agents import AgentManager
 from evoagentx.actions.code_extraction import CodeExtraction
@@ -19,54 +42,28 @@ from evoagentx.core.module_utils import extract_code_blocks
 
 load_dotenv()  # Loads environment variables from .env file
 
-# === Keys / URLs ===
-# We will route ALL LLM calls to Ollama via OpenAI-compatible endpoint.
-# Keep Anthropic unset; we won't call it now.
+# === Ollama OpenAI-compatible endpoint ===
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://217.15.175.196:11434/v1").rstrip("/")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
-OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "ollama")  # dummy token for Ollama
+# Force OpenAI SDK to talk to Ollama (dummy key is fine for Ollama)
+os.environ["OPENAI_BASE_URL"] = OLLAMA_BASE_URL
+os.environ["OPENAI_API_KEY"] = os.getenv("OLLAMA_API_KEY", "ollama")
 
-def build_generation_llm():
-    """
-    Main LLM used across:
-      - WorkFlowGenerator
-      - Agents created by AgentManager
-      - WorkFlow.execute()
-
-    We switch from OpenAILLM -> LiteLLM to use Ollama's OpenAI-compatible API.
-    """
-    gen_cfg = LiteLLMConfig(
-        # IMPORTANT: use litellm's "ollama/<model>" routing with explicit base_url
-        model=f"ollama/{OLLAMA_MODEL}",
-        base_url=OLLAMA_BASE_URL,
-        api_key=OLLAMA_API_KEY,
-        # Parity with original:
-        stream=True,
-        output_response=True,
-        max_tokens=16000,
-        temperature=0.2,  # optional, stable gen
+def build_llm(max_tokens=16000, temperature=0.2, stream=True, output_response=True):
+    cfg = OpenAILLMConfig(
+        model=OLLAMA_MODEL,
+        openai_key=os.environ["OPENAI_API_KEY"],
+        stream=stream,
+        output_response=output_response,
+        max_tokens=max_tokens,
+        temperature=temperature,
     )
-    return LiteLLM(config=gen_cfg)
-
-def build_verifier_llm():
-    """
-    Previously used Anthropic via LiteLLM.
-    We'll reuse Ollama model for verification to keep the flow intact.
-    """
-    ver_cfg = LiteLLMConfig(
-        model=f"ollama/{OLLAMA_MODEL}",
-        base_url=OLLAMA_BASE_URL,
-        api_key=OLLAMA_API_KEY,
-        stream=True,
-        output_response=True,
-        max_tokens=20000,
-        temperature=0.0,  # stricter for verification
-    )
-    return LiteLLM(config=ver_cfg)
+    return OpenAILLM(config=cfg)
 
 def main():
     # === LLMs ===
-    llm = build_generation_llm()
+    llm = build_llm(max_tokens=16000, temperature=0.2)
+    verification_llm = build_llm(max_tokens=20000, temperature=0.0)
 
     # === Your goal (unchanged) ===
     goal = "Generate html code for the Tetris game that can be played in the browser."
@@ -85,14 +82,13 @@ def main():
     # NOTE: pass the SAME llm config used above so agents are consistent
     agent_manager.add_agents_from_workflow(
         workflow_graph,
-        llm_config=llm.config  # keep agents on the Ollama LiteLLM config
+        llm_config=llm.config  # keep agents on the OpenAI->Ollama config
     )
 
     workflow = WorkFlow(graph=workflow_graph, agent_manager=agent_manager, llm=llm)
     output = workflow.execute()
 
-    # === Verification (reuse Ollama) ===
-    verification_llm = build_verifier_llm()
+    # === Verification (reuse same LLM) ===
     code_verifier = CodeVerification()
     output = code_verifier.execute(
         llm=verification_llm,
