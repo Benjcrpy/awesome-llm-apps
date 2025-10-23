@@ -14,6 +14,9 @@ ll_pkg = types.ModuleType("llama_index"); ll_pkg.__path__ = []  # mark as pkg
 ll_core = types.ModuleType("llama_index.core")
 ll_schema = types.ModuleType("llama_index.core.schema")
 ll_core_emb = types.ModuleType("llama_index.core.embeddings")
+ll_core_graph = types.ModuleType("llama_index.core.graph_stores")
+ll_core_graph_types = types.ModuleType("llama_index.core.graph_stores.types")
+
 ll_emb = types.ModuleType("llama_index.embeddings")
 ll_az  = types.ModuleType("llama_index.embeddings.azure_openai")
 
@@ -50,13 +53,33 @@ ll_schema.RelatedNodeInfo = RelatedNodeInfo
 class BaseEmbedding:
     """Minimal shim to satisfy `from llama_index.core.embeddings import BaseEmbedding`."""
     def __init__(self, *args, **kwargs): pass
-    # Optional helpers in case something calls them
-    def get_text_embedding(self, text: str):
-        return [0.0]
-    def get_text_embedding_batch(self, texts):
-        return [[0.0] for _ in texts]
+    def get_text_embedding(self, text: str): return [0.0]
+    def get_text_embedding_batch(self, texts): return [[0.0] for _ in texts]
 
 ll_core_emb.BaseEmbedding = BaseEmbedding
+
+# --- core.graph_stores.types stubs ---
+class GraphStore:
+    """Minimal shim used by EvoAgentX storage layer."""
+    def __init__(self, *args, **kwargs):
+        # in-memory no-op placeholders
+        self._nodes = {}
+        self._edges = []
+
+    # optional no-op methods some code might call
+    def add_node(self, node_id: str, **kwargs):
+        self._nodes[node_id] = kwargs
+    def add_nodes(self, nodes):
+        for n in nodes:
+            self.add_node(getattr(n, "id_", "node"), obj=n)
+    def add_edge(self, src: str, dst: str, **kwargs):
+        self._edges.append((src, dst, kwargs))
+    def get(self, *args, **kwargs):
+        return None
+    def query(self, *args, **kwargs):
+        return []
+
+ll_core_graph_types.GraphStore = GraphStore
 
 # --- embeddings.azure_openai stubs ---
 class AzureOpenAIEmbedding:
@@ -76,6 +99,8 @@ sys.modules['llama_index'] = ll_pkg
 sys.modules['llama_index.core'] = ll_core
 sys.modules['llama_index.core.schema'] = ll_schema
 sys.modules['llama_index.core.embeddings'] = ll_core_emb
+sys.modules['llama_index.core.graph_stores'] = ll_core_graph
+sys.modules['llama_index.core.graph_stores.types'] = ll_core_graph_types
 sys.modules['llama_index.embeddings'] = ll_emb
 sys.modules['llama_index.embeddings.azure_openai'] = ll_az
 
@@ -83,6 +108,9 @@ sys.modules['llama_index.embeddings.azure_openai'] = ll_az
 ll_pkg.core = ll_core
 ll_core.schema = ll_schema
 ll_core.embeddings = ll_core_emb
+ll_core.graph_stores = ll_core_graph
+ll_core_graph.types = ll_core_graph_types
+
 ll_pkg.embeddings = ll_emb
 ll_emb.azure_openai = ll_az
 # ------------------------------------------------------
