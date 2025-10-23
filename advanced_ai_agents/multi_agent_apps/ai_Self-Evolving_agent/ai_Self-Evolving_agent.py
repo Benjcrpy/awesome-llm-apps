@@ -76,7 +76,7 @@ if 'tkinter' not in sys.modules:
     sys.modules['tkinter.filedialog'] = types.ModuleType('tkinter.filedialog')
 # -------------------------------------------------------------------------------
 
-# --- llama_index minimal stub tree (schema, embeddings, graph_stores, azure_openai) ---
+# --- llama_index minimal stub tree (schema, embeddings, graph_stores, vector_stores, azure_openai) ---
 ll_pkg = types.ModuleType("llama_index")
 ll_core = types.ModuleType("llama_index.core")
 ll_schema = types.ModuleType("llama_index.core.schema")
@@ -84,10 +84,14 @@ ll_core_emb = types.ModuleType("llama_index.core.embeddings")
 ll_core_graph = types.ModuleType("llama_index.core.graph_stores")
 ll_core_graph_types = types.ModuleType("llama_index.core.graph_stores.types")
 ll_core_graph_simple = types.ModuleType("llama_index.core.graph_stores.simple")
+# NEW: vector store modules
+ll_core_vector = types.ModuleType("llama_index.core.vector_stores")
+ll_core_vector_types = types.ModuleType("llama_index.core.vector_stores.types")
+
 ll_emb = types.ModuleType("llama_index.embeddings")
 ll_az = types.ModuleType("llama_index.embeddings.azure_openai")
 
-# schema
+# ----- schema -----
 class BaseNode:
     def __init__(self, text: str = "", id_: str | None = None, metadata: dict | None = None, **kwargs):
         self.text = text
@@ -111,14 +115,13 @@ class NodeWithScore:
         self.node = node
         self.score = score
 
-# export into module
 ll_schema.BaseNode = BaseNode
 ll_schema.TextNode = TextNode
 ll_schema.ImageNode = ImageNode
 ll_schema.RelatedNodeInfo = RelatedNodeInfo
 ll_schema.NodeWithScore = NodeWithScore
 
-# embeddings
+# ----- embeddings -----
 class BaseEmbedding:
     def __init__(self, *args, **kwargs): pass
     def get_text_embedding(self, text: str):
@@ -127,7 +130,7 @@ class BaseEmbedding:
         return [[0.0] for _ in texts]
 ll_core_emb.BaseEmbedding = BaseEmbedding
 
-# graph stores (types + simple)
+# ----- graph stores (types + simple) -----
 class _StubGraphStore:
     def __init__(self, *args, **kwargs):
         self._nodes = {}
@@ -147,7 +150,26 @@ class _StubGraphStore:
 ll_core_graph_types.GraphStore = _StubGraphStore
 ll_core_graph_simple.GraphStore = _StubGraphStore
 
-# azure_openai embeddings
+# ----- vector stores (types) -----
+class _StubVectorStore:
+    """Ultra-minimal VectorStore API to satisfy evoagentx imports."""
+    def __init__(self, *args, **kwargs):
+        self._docs = []  # (id, embedding, metadata)
+    def add(self, nodes=None, embeddings=None, ids=None, metadatas=None, **kwargs):
+        nodes = nodes or []
+        embeddings = embeddings or [[] for _ in nodes]
+        ids = ids or [getattr(n, "id_", f"id{idx}") for idx, n in enumerate(nodes)]
+        metadatas = metadatas or [{} for _ in nodes]
+        for i, n in enumerate(nodes):
+            self._docs.append((ids[i], embeddings[i], metadatas[i]))
+        return ids
+    def query(self, query_embedding=None, top_k: int = 5, **kwargs):
+        # return empty results; evoagentx won't rely on real vectors in this setup
+        return []
+    # Some libs expect as type but never call
+ll_core_vector_types.VectorStore = _StubVectorStore
+
+# ----- azure_openai embeddings -----
 class AzureOpenAIEmbedding:
     def __init__(self, *args, **kwargs): pass
     def get_text_embedding(self, text: str): return [0.0]
@@ -158,7 +180,7 @@ class AzureOpenAIEmbeddingModel:
 ll_az.AzureOpenAIEmbedding = AzureOpenAIEmbedding
 ll_az.AzureOpenAIEmbeddingModel = AzureOpenAIEmbeddingModel
 
-# register modules
+# ----- register modules -----
 sys.modules['llama_index'] = ll_pkg
 sys.modules['llama_index.core'] = ll_core
 sys.modules['llama_index.core.schema'] = ll_schema
@@ -166,18 +188,24 @@ sys.modules['llama_index.core.embeddings'] = ll_core_emb
 sys.modules['llama_index.core.graph_stores'] = ll_core_graph
 sys.modules['llama_index.core.graph_stores.types'] = ll_core_graph_types
 sys.modules['llama_index.core.graph_stores.simple'] = ll_core_graph_simple
+# NEW:
+sys.modules['llama_index.core.vector_stores'] = ll_core_vector
+sys.modules['llama_index.core.vector_stores.types'] = ll_core_vector_types
+
 sys.modules['llama_index.embeddings'] = ll_emb
 sys.modules['llama_index.embeddings.azure_openai'] = ll_az
 
-# attribute chaining
+# ----- link attribute hierarchy -----
 ll_pkg.core = ll_core
 ll_core.schema = ll_schema
 ll_core.embeddings = ll_core_emb
 ll_core.graph_stores = ll_core_graph
-ll_core_graph.types = ll_core_graph_types
-ll_core_graph.simple = ll_core_graph_simple
+ll_core_vector.types = ll_core_vector_types
+ll_core.graph_stores.types = ll_core_graph_types
+ll_core.graph_stores.simple = ll_core_graph_simple
 ll_pkg.embeddings = ll_emb
 ll_emb.azure_openai = ll_az
+ll_core.vector_stores = ll_core_vector
 # =========================
 #  END HARD STUBS
 # =========================
