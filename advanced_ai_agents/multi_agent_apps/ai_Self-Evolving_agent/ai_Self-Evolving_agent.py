@@ -214,6 +214,44 @@ ll_emb.azure_openai = ll_az
 #  END HARD STUBS
 # =========================
 
+# === EXTRA STUB: llama_index.vector_stores.faiss ===
+import sys, types
+
+# Kung wala pa ang parent package na 'llama_index', siguraduhing meron
+if "llama_index" not in sys.modules:
+    sys.modules["llama_index"] = types.ModuleType("llama_index")
+
+# Create / reuse 'llama_index.vector_stores' tree
+_li_vs_pkg = sys.modules.get("llama_index.vector_stores") or types.ModuleType("llama_index.vector_stores")
+_li_vs_faiss = types.ModuleType("llama_index.vector_stores.faiss")
+
+class FaissMapVectorStore:
+    """Super minimal fake Faiss store; sapat lang para hindi mag-crash ang EvoAgentX."""
+    def __init__(self, *args, **kwargs):
+        self._docs = []   # [(id, embedding, metadata)]
+    def add(self, nodes=None, embeddings=None, ids=None, metadatas=None, **kwargs):
+        nodes = nodes or []
+        embeddings = embeddings or [[] for _ in nodes]
+        ids = ids or [getattr(n, "id_", f"id{idx}") for idx, n in enumerate(nodes)]
+        metadatas = metadatas or [{} for _ in nodes]
+        for i, n in enumerate(nodes):
+            self._docs.append((ids[i], embeddings[i], metadatas[i]))
+        return ids
+    def query(self, query_embedding=None, top_k: int = 5, **kwargs):
+        # dummy result; walang tunay na similarity search
+        return []
+
+_li_vs_faiss.FaissMapVectorStore = FaissMapVectorStore
+
+# I-register sa sys.modules at i-wire ang hierarchy
+sys.modules["llama_index.vector_stores"] = _li_vs_pkg
+sys.modules["llama_index.vector_stores.faiss"] = _li_vs_faiss
+
+# expose as attributes para gumana ang dotted access
+setattr(sys.modules["llama_index"], "vector_stores", _li_vs_pkg)
+setattr(_li_vs_pkg, "faiss", _li_vs_faiss)
+# === END EXTRA STUB ===
+
 
 # =============
 #  APP LOGIC
