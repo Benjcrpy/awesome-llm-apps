@@ -1,4 +1,3 @@
-# === runtime deps for self-evolving agent (lean, no CUDA/torch, no heavy extras) ===
 openai>=1.55.3
 httpx>=0.24.1
 python-dotenv>=1.0.0
@@ -8,7 +7,6 @@ telethon>=1.36.0
 psycopg2-binary>=2.9.9
 feedparser>=6.0.11
 
-# light utilities EvoAgentX uses
 pydantic>=2.9.0,<=2.10.6
 pydantic-settings==2.8.1
 pydantic_core>=2.23.2,<=2.27.2
@@ -17,6 +15,7 @@ networkx>=3.3
 tenacity
 nltk>=3.9.1
 numpy>=1.26.4
+pandas==2.2.3
 tree_sitter
 tree_sitter_python
 antlr4-python3-runtime==4.11
