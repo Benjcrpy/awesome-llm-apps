@@ -6,11 +6,44 @@ if 'tkinter' not in sys.modules:
     sys.modules['tkinter.filedialog'] = types.ModuleType('tkinter.filedialog')
 # ------------------------------------------------
 
-# ---- STUB for llama_index.embeddings.azure_openai (avoid installing llama-index) ----
-ll_pkg = types.ModuleType("llama_index")
+# ---- STUBS for LlamaIndex pieces EvoAgentX imports (avoid installing llama-index) ----
+# Creates fake modules: llama_index.core.schema and llama_index.embeddings.azure_openai
+ll_pkg = types.ModuleType("llama_index"); ll_pkg.__path__ = []
+ll_core = types.ModuleType("llama_index.core")
+ll_schema = types.ModuleType("llama_index.core.schema")
 ll_emb = types.ModuleType("llama_index.embeddings")
 ll_az  = types.ModuleType("llama_index.embeddings.azure_openai")
 
+# === core.schema ===
+class _BaseNode:
+    def __init__(self, text: str = "", id_: str | None = None, metadata: dict | None = None, **kwargs):
+        self.text = text
+        self.id_ = id_ or "stub"
+        self.metadata = metadata or {}
+
+class TextNode(_BaseNode): pass
+
+class ImageNode(_BaseNode):
+    def __init__(self, image: bytes | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self.image = image
+
+class RelatedNodeInfo:
+    def __init__(self, node_id: str | None = None, metadata: dict | None = None, **kwargs):
+        self.node_id = node_id or "stub-related"
+        self.metadata = metadata or {}
+
+class NodeWithScore:
+    def __init__(self, node: object, score: float = 0.0, **kwargs):
+        self.node = node
+        self.score = score
+
+ll_schema.NodeWithScore = NodeWithScore
+ll_schema.TextNode = TextNode
+ll_schema.ImageNode = ImageNode
+ll_schema.RelatedNodeInfo = RelatedNodeInfo
+
+# === embeddings.azure_openai ===
 class AzureOpenAIEmbedding:
     def __init__(self, *args, **kwargs): pass
     def get_text_embedding(self, text: str): return [0.0]
@@ -22,17 +55,25 @@ class AzureOpenAIEmbeddingModel:
 
 ll_az.AzureOpenAIEmbedding = AzureOpenAIEmbedding
 ll_az.AzureOpenAIEmbeddingModel = AzureOpenAIEmbeddingModel
+
+# Register in sys.modules
 sys.modules['llama_index'] = ll_pkg
+sys.modules['llama_index.core'] = ll_core
+sys.modules['llama_index.core.schema'] = ll_schema
 sys.modules['llama_index.embeddings'] = ll_emb
 sys.modules['llama_index.embeddings.azure_openai'] = ll_az
+
+# Link hierarchy
+ll_pkg.core = ll_core
+ll_core.schema = ll_schema
 ll_pkg.embeddings = ll_emb
 ll_emb.azure_openai = ll_az
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------
 
 import os
 from dotenv import load_dotenv
 
-# ✅ EvoAgentX imports — REMOVE LiteLLM here
+# ✅ EvoAgentX imports (LiteLLM removed)
 from evoagentx.models import OpenAILLMConfig, OpenAILLM
 from evoagentx.workflow import WorkFlowGenerator, WorkFlowGraph, WorkFlow
 from evoagentx.agents import AgentManager
@@ -45,7 +86,6 @@ load_dotenv()  # Loads environment variables from .env file
 # === Ollama OpenAI-compatible endpoint ===
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://217.15.175.196:11434/v1").rstrip("/")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
-# Force OpenAI SDK to talk to Ollama (dummy key is fine for Ollama)
 os.environ["OPENAI_BASE_URL"] = OLLAMA_BASE_URL
 os.environ["OPENAI_API_KEY"] = os.getenv("OLLAMA_API_KEY", "ollama")
 
@@ -65,37 +105,34 @@ def main():
     llm = build_llm(max_tokens=16000, temperature=0.2)
     verification_llm = build_llm(max_tokens=20000, temperature=0.0)
 
-    # === Your goal (unchanged) ===
+    # === Goal ===
     goal = "Generate html code for the Tetris game that can be played in the browser."
     target_directory = "examples/output/tetris_game"
 
-    # === Build workflow (unchanged logic) ===
+    # === Build workflow ===
     wf_generator = WorkFlowGenerator(llm=llm)
     workflow_graph: WorkFlowGraph = wf_generator.generate_workflow(goal=goal)
 
-    # [optional] display/save
+    # [optional]
     workflow_graph.display()
-    # workflow_graph.save_module(f"{target_directory}/workflow_demo_ollama.json")
-    # workflow_graph: WorkFlowGraph = WorkFlowGraph.from_file(f"{target_directory}/workflow_demo_ollama.json")
 
     agent_manager = AgentManager()
-    # NOTE: pass the SAME llm config used above so agents are consistent
     agent_manager.add_agents_from_workflow(
         workflow_graph,
-        llm_config=llm.config  # keep agents on the OpenAI->Ollama config
+        llm_config=llm.config
     )
 
     workflow = WorkFlow(graph=workflow_graph, agent_manager=agent_manager, llm=llm)
     output = workflow.execute()
 
-    # === Verification (reuse same LLM) ===
+    # === Verification ===
     code_verifier = CodeVerification()
     output = code_verifier.execute(
         llm=verification_llm,
         inputs={"requirements": goal, "code": output}
     ).verified_code
 
-    # === Extraction (unchanged) ===
+    # === Extraction ===
     os.makedirs(target_directory, exist_ok=True)
     code_blocks = extract_code_blocks(output)
     if len(code_blocks) == 1:
