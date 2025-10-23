@@ -1,3 +1,11 @@
+# ---- Headless hack: stub out tkinter so EvoAgentX HITL GUI imports don't require X ----
+import sys, types
+if 'tkinter' not in sys.modules:
+    sys.modules['tkinter'] = types.ModuleType('tkinter')
+    sys.modules['tkinter.ttk'] = types.ModuleType('tkinter.ttk')
+    sys.modules['tkinter.filedialog'] = types.ModuleType('tkinter.filedialog')
+# ---------------------------------------------------------------------------------------
+
 import os
 from dotenv import load_dotenv
 
