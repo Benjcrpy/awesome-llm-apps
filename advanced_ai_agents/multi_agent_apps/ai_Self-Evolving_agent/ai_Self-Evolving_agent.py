@@ -1,30 +1,33 @@
-# --- HARD FIX: stub 'litellm' (only what EvoAgentX imports) ---
+# === HARD STUBS needed by EvoAgentX (must be at the very top) ===
 import sys, types
+
+# --- litellm stub (provide completion/acompletion + token utils) ---
 try:
-    from litellm import token_counter, cost_per_token  # real package kung present
-except ModuleNotFoundError:
+    from litellm import completion, acompletion, token_counter, cost_per_token  # if available
+except Exception:
+    class _Resp:
+        def __init__(self, content=""):
+            self.choices = [
+                type("Choice", (), {
+                    "message": type("Msg", (), {"content": content})()
+                })()
+            ]
+    async def acompletion(*args, **kwargs): return _Resp("")
+    def completion(*args, **kwargs): return _Resp("")
     def token_counter(text, model=None, **kwargs):
-        # super-simple token estimate para lang hindi mag-crash
-        # approx 4 chars per token
-        try:
-            n_chars = len(text or "")
-        except Exception:
-            n_chars = 0
-        return max(1, n_chars // 4)
+        try: n = len(text or "")
+        except Exception: n = 0
+        return max(1, n // 4)  # ~4 chars/token
+    def cost_per_token(*args, **kwargs): return 0.0
 
-    def cost_per_token(model=None, **kwargs):
-        # wala tayong billing calc — return 0
-        return 0.0
+    _m = types.ModuleType("litellm")
+    _m.completion = completion
+    _m.acompletion = acompletion
+    _m.token_counter = token_counter
+    _m.cost_per_token = cost_per_token
+    sys.modules["litellm"] = _m
 
-    _litellm = types.ModuleType("litellm")
-    _litellm.token_counter = token_counter
-    _litellm.cost_per_token = cost_per_token
-    sys.modules["litellm"] = _litellm
-# ---------------------------------------------------------------
-
-
-# --- HARD FIX: stub 'overdue' para hindi mag-crash ang EvoAgentX ---
-import sys
+# --- overdue stub (timeout context) ---
 try:
     import overdue  # real package kung meron
 except ModuleNotFoundError:
@@ -32,13 +35,7 @@ except ModuleNotFoundError:
         def __init__(self, *args, **kwargs): pass
         def __enter__(self): return self
         def __exit__(self, exc_type, exc, tb): return False
-
-    _overdue = type("overdue", (), {"timeout_set_to": _NoopTimeout})()
-    sys.modules["overdue"] = _overdue
-# -------------------------------------------------------------------
-
-
-import sys, types
+    sys.modules["overdue"] = type("overdue", (), {"timeout_set_to": _NoopTimeout})()
 
 # --- Tkinter stubs (para hindi maghanap ng X/GUI) ---
 if 'tkinter' not in sys.modules:
@@ -46,7 +43,7 @@ if 'tkinter' not in sys.modules:
     sys.modules['tkinter.ttk'] = types.ModuleType('tkinter.ttk')
     sys.modules['tkinter.filedialog'] = types.ModuleType('tkinter.filedialog')
 
-# --- Create llama_index stub module tree (covers all paths na nag-e-error) ---
+# --- llama_index minimal stub tree (schema, embeddings, graph_stores, azure_openai) ---
 ll_pkg = types.ModuleType("llama_index")
 ll_core = types.ModuleType("llama_index.core")
 ll_schema = types.ModuleType("llama_index.core.schema")
@@ -57,77 +54,53 @@ ll_core_graph_simple = types.ModuleType("llama_index.core.graph_stores.simple")
 ll_emb = types.ModuleType("llama_index.embeddings")
 ll_az = types.ModuleType("llama_index.embeddings.azure_openai")
 
-# --- core.schema stubs ---
 class BaseNode:
     def __init__(self, text: str = "", id_: str | None = None, metadata: dict | None = None, **kwargs):
-        self.text = text
-        self.id_ = id_ or "stub"
-        self.metadata = metadata or {}
-
+        self.text = text; self.id_ = id_ or "stub"; self.metadata = metadata or {}
 class TextNode(BaseNode): pass
-
 class ImageNode(BaseNode):
     def __init__(self, image: bytes | None = None, **kwargs):
-        super().__init__(**kwargs)
-        self.image = image
-
+        super().__init__(**kwargs); self.image = image
 class RelatedNodeInfo:
     def __init__(self, node_id: str | None = None, metadata: dict | None = None, **kwargs):
-        self.node_id = node_id or "stub-related"
-        self.metadata = metadata or {}
-
+        self.node_id = node_id or "stub-related"; self.metadata = metadata or {}
 class NodeWithScore:
     def __init__(self, node: object, score: float = 0.0, **kwargs):
-        self.node = node
-        self.score = score
-
+        self.node = node; self.score = score
 ll_schema.NodeWithScore = NodeWithScore
 ll_schema.TextNode = TextNode
 ll_schema.ImageNode = ImageNode
 ll_schema.RelatedNodeInfo = RelatedNodeInfo
 
-# --- core.embeddings stubs ---
 class BaseEmbedding:
     def __init__(self, *args, **kwargs): pass
     def get_text_embedding(self, text: str): return [0.0]
     def get_text_embedding_batch(self, texts): return [[0.0] for _ in texts]
-
 ll_core_emb.BaseEmbedding = BaseEmbedding
 
-# --- core.graph_stores GraphStore stub (types + simple) ---
 class _StubGraphStore:
-    def __init__(self, *args, **kwargs):
-        self._nodes = {}
-        self._edges = []
-    def add_node(self, node_id: str, **kwargs):
-        self._nodes[node_id] = kwargs
+    def __init__(self, *args, **kwargs): self._nodes = {}; self._edges = []
+    def add_node(self, node_id: str, **kwargs): self._nodes[node_id] = kwargs
     def add_nodes(self, nodes):
-        for n in nodes:
-            self.add_node(getattr(n, "id_", "node"), obj=n)
-    def add_edge(self, src: str, dst: str, **kwargs):
-        self._edges.append((src, dst, kwargs))
+        for n in nodes: self.add_node(getattr(n, "id_", "node"), obj=n)
+    def add_edge(self, src: str, dst: str, **kwargs): self._edges.append((src, dst, kwargs))
     def get(self, *args, **kwargs): return None
     def get_all(self, *args, **kwargs): return []
     def query(self, *args, **kwargs): return []
     def put(self, *args, **kwargs): pass
-
 ll_core_graph_types.GraphStore = _StubGraphStore
 ll_core_graph_simple.GraphStore = _StubGraphStore
 
-# --- embeddings.azure_openai stubs ---
 class AzureOpenAIEmbedding:
     def __init__(self, *args, **kwargs): pass
     def get_text_embedding(self, text: str): return [0.0]
     def get_text_embedding_batch(self, texts): return [[0.0] for _ in texts]
-
 class AzureOpenAIEmbeddingModel:
     text_embedding_3_large = "text-embedding-3-large"
     text_embedding_3_small = "text-embedding-3-small"
-
 ll_az.AzureOpenAIEmbedding = AzureOpenAIEmbedding
 ll_az.AzureOpenAIEmbeddingModel = AzureOpenAIEmbeddingModel
 
-# --- Register modules in sys.modules ---
 sys.modules['llama_index'] = ll_pkg
 sys.modules['llama_index.core'] = ll_core
 sys.modules['llama_index.core.schema'] = ll_schema
@@ -138,7 +111,6 @@ sys.modules['llama_index.core.graph_stores.simple'] = ll_core_graph_simple
 sys.modules['llama_index.embeddings'] = ll_emb
 sys.modules['llama_index.embeddings.azure_openai'] = ll_az
 
-# --- Link hierarchy (attribute access) ---
 ll_pkg.core = ll_core
 ll_core.schema = ll_schema
 ll_core.embeddings = ll_core_emb
@@ -147,14 +119,14 @@ ll_core_graph.types = ll_core_graph_types
 ll_core_graph.simple = ll_core_graph_simple
 ll_pkg.embeddings = ll_emb
 ll_emb.azure_openai = ll_az
-# ===== END STUBS =====
+# === END HARD STUBS ===
 
 
 # ===== APP LOGIC =====
 import os
 from dotenv import load_dotenv
 
-# EvoAgentX (gagamit tayo ng OpenAILLM para kumabit sa Ollama via OpenAI-compatible endpoint)
+# EvoAgentX (OpenAILLM -> Ollama via OpenAI-compatible endpoint)
 from evoagentx.models import OpenAILLMConfig, OpenAILLM
 from evoagentx.workflow import WorkFlowGenerator, WorkFlowGraph, WorkFlow
 from evoagentx.agents import AgentManager
