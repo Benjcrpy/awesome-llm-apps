@@ -1,3 +1,18 @@
+# --- HARD FIX: stub 'overdue' para hindi mag-crash ang EvoAgentX ---
+import sys
+try:
+    import overdue  # real package kung meron
+except ModuleNotFoundError:
+    class _NoopTimeout:
+        def __init__(self, *args, **kwargs): pass
+        def __enter__(self): return self
+        def __exit__(self, exc_type, exc, tb): return False
+
+    _overdue = type("overdue", (), {"timeout_set_to": _NoopTimeout})()
+    sys.modules["overdue"] = _overdue
+# -------------------------------------------------------------------
+
+
 import sys, types
 
 # --- Tkinter stubs (para hindi maghanap ng X/GUI) ---
