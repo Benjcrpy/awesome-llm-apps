@@ -21,3 +21,4 @@ tree_sitter
 tree_sitter_python
 antlr4-python3-runtime==4.11
 faiss-cpu==1.8.0.post1
+PyYAML==6.0.2
