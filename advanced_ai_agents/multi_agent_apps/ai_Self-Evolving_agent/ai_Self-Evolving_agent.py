@@ -1,26 +1,36 @@
-# --- HARD STUB: dashscope (to satisfy evoagentx.models.aliyun_model import) ---
+# =========================
+#  HARD STUBS (TOP-OF-FILE)
+# =========================
 import sys, types
+
+# --- HARD STUB: dashscope (to satisfy evoagentx.models.aliyun_model import) ---
 try:
     from dashscope import Generation  # if the real SDK exists, ok
 except Exception:
     class _DummyGeneration:
-        """Minimal fake to prevent ImportError when EvoAgentX imports aliyun_model.
-        We won't actually call this in your flow."""
+        """Minimal fake to prevent ImportError when EvoAgentX imports aliyun_model."""
         @staticmethod
         def call(*args, **kwargs):
             class _Resp:
                 # mimic a minimal response shape if ever touched
                 output = {"text": ""}
             return _Resp()
-
     _dashscope = types.ModuleType("dashscope")
     _dashscope.Generation = _DummyGeneration
     sys.modules["dashscope"] = _dashscope
 # -------------------------------------------------------------------------------
 
-
-# === HARD STUBS needed by EvoAgentX (must be at the very top) ===
-import sys, types
+# --- HARD STUB: Neo4jGraphStoreWrapper (prevent import crash on neo4j module) ---
+_neo4j_mod = types.ModuleType("evoagentx.storages.graph_stores.neo4j")
+class Neo4jGraphStoreWrapper:
+    def __init__(self, *args, **kwargs): pass
+    def as_graph_store(self):
+        # return a simple in-memory GraphStore from our llama_index stub
+        from llama_index.core.graph_stores.simple import GraphStore
+        return GraphStore()
+_neo4j_mod.Neo4jGraphStoreWrapper = Neo4jGraphStoreWrapper
+sys.modules["evoagentx.storages.graph_stores.neo4j"] = _neo4j_mod
+# -------------------------------------------------------------------------------
 
 # --- litellm stub (provide completion/acompletion + token utils) ---
 try:
@@ -40,13 +50,13 @@ except Exception:
         except Exception: n = 0
         return max(1, n // 4)  # ~4 chars/token
     def cost_per_token(*args, **kwargs): return 0.0
-
     _m = types.ModuleType("litellm")
     _m.completion = completion
     _m.acompletion = acompletion
     _m.token_counter = token_counter
     _m.cost_per_token = cost_per_token
     sys.modules["litellm"] = _m
+# -------------------------------------------------------------------------------
 
 # --- overdue stub (timeout context) ---
 try:
@@ -57,12 +67,14 @@ except ModuleNotFoundError:
         def __enter__(self): return self
         def __exit__(self, exc_type, exc, tb): return False
     sys.modules["overdue"] = type("overdue", (), {"timeout_set_to": _NoopTimeout})()
+# -------------------------------------------------------------------------------
 
 # --- Tkinter stubs (para hindi maghanap ng X/GUI) ---
 if 'tkinter' not in sys.modules:
     sys.modules['tkinter'] = types.ModuleType('tkinter')
     sys.modules['tkinter.ttk'] = types.ModuleType('tkinter.ttk')
     sys.modules['tkinter.filedialog'] = types.ModuleType('tkinter.filedialog')
+# -------------------------------------------------------------------------------
 
 # --- llama_index minimal stub tree (schema, embeddings, graph_stores, azure_openai) ---
 ll_pkg = types.ModuleType("llama_index")
@@ -75,43 +87,67 @@ ll_core_graph_simple = types.ModuleType("llama_index.core.graph_stores.simple")
 ll_emb = types.ModuleType("llama_index.embeddings")
 ll_az = types.ModuleType("llama_index.embeddings.azure_openai")
 
+# schema
 class BaseNode:
     def __init__(self, text: str = "", id_: str | None = None, metadata: dict | None = None, **kwargs):
-        self.text = text; self.id_ = id_ or "stub"; self.metadata = metadata or {}
+        self.text = text
+        self.id_ = id_ or "stub"
+        self.metadata = metadata or {}
+
 class TextNode(BaseNode): pass
+
 class ImageNode(BaseNode):
     def __init__(self, image: bytes | None = None, **kwargs):
-        super().__init__(**kwargs); self.image = image
+        super().__init__(**kwargs)
+        self.image = image
+
 class RelatedNodeInfo:
     def __init__(self, node_id: str | None = None, metadata: dict | None = None, **kwargs):
-        self.node_id = node_id or "stub-related"; self.metadata = metadata or {}
+        self.node_id = node_id or "stub-related"
+        self.metadata = metadata or {}
+
 class NodeWithScore:
     def __init__(self, node: object, score: float = 0.0, **kwargs):
-        self.node = node; self.score = score
-ll_schema.NodeWithScore = NodeWithScore
+        self.node = node
+        self.score = score
+
+# export into module
+ll_schema.BaseNode = BaseNode
 ll_schema.TextNode = TextNode
 ll_schema.ImageNode = ImageNode
 ll_schema.RelatedNodeInfo = RelatedNodeInfo
+ll_schema.NodeWithScore = NodeWithScore
 
+# embeddings
 class BaseEmbedding:
     def __init__(self, *args, **kwargs): pass
-    def get_text_embedding(self, text: str): return [0.0]
-    def get_text_embedding_batch(self, texts): return [[0.0] for _ in texts]
+    def get_text_embedding(self, text: str):
+        return [0.0]
+    def get_text_embedding_batch(self, texts):
+        return [[0.0] for _ in texts]
 ll_core_emb.BaseEmbedding = BaseEmbedding
 
+# graph stores (types + simple)
 class _StubGraphStore:
-    def __init__(self, *args, **kwargs): self._nodes = {}; self._edges = []
-    def add_node(self, node_id: str, **kwargs): self._nodes[node_id] = kwargs
+    def __init__(self, *args, **kwargs):
+        self._nodes = {}
+        self._edges = []
+    def add_node(self, node_id: str, **kwargs):
+        self._nodes[node_id] = kwargs
     def add_nodes(self, nodes):
-        for n in nodes: self.add_node(getattr(n, "id_", "node"), obj=n)
-    def add_edge(self, src: str, dst: str, **kwargs): self._edges.append((src, dst, kwargs))
+        for n in nodes:
+            self.add_node(getattr(n, "id_", "node"), obj=n)
+    def add_edge(self, src: str, dst: str, **kwargs):
+        self._edges.append((src, dst, kwargs))
     def get(self, *args, **kwargs): return None
     def get_all(self, *args, **kwargs): return []
     def query(self, *args, **kwargs): return []
     def put(self, *args, **kwargs): pass
+
 ll_core_graph_types.GraphStore = _StubGraphStore
 ll_core_graph_simple.GraphStore = _StubGraphStore
 
+# azure_openai embeddings
 class AzureOpenAIEmbedding:
     def __init__(self, *args, **kwargs): pass
     def get_text_embedding(self, text: str): return [0.0]
@@ -122,6 +158,7 @@ class AzureOpenAIEmbeddingModel:
 ll_az.AzureOpenAIEmbedding = AzureOpenAIEmbedding
 ll_az.AzureOpenAIEmbeddingModel = AzureOpenAIEmbeddingModel
 
+# register modules
 sys.modules['llama_index'] = ll_pkg
 sys.modules['llama_index.core'] = ll_core
 sys.modules['llama_index.core.schema'] = ll_schema
@@ -132,6 +169,7 @@ sys.modules['llama_index.core.graph_stores.simple'] = ll_core_graph_simple
 sys.modules['llama_index.embeddings'] = ll_emb
 sys.modules['llama_index.embeddings.azure_openai'] = ll_az
 
+# attribute chaining
 ll_pkg.core = ll_core
 ll_core.schema = ll_schema
 ll_core.embeddings = ll_core_emb
@@ -140,10 +178,14 @@ ll_core_graph.types = ll_core_graph_types
 ll_core_graph.simple = ll_core_graph_simple
 ll_pkg.embeddings = ll_emb
 ll_emb.azure_openai = ll_az
-# === END HARD STUBS ===
+# =========================
+#  END HARD STUBS
+# =========================
 
 
-# ===== APP LOGIC =====
+# =============
+#  APP LOGIC
+# =============
 import os
 from dotenv import load_dotenv
 
