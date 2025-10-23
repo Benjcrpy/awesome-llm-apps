@@ -1,3 +1,24 @@
+# --- HARD STUB: dashscope (to satisfy evoagentx.models.aliyun_model import) ---
+import sys, types
+try:
+    from dashscope import Generation  # if the real SDK exists, ok
+except Exception:
+    class _DummyGeneration:
+        """Minimal fake to prevent ImportError when EvoAgentX imports aliyun_model.
+        We won't actually call this in your flow."""
+        @staticmethod
+        def call(*args, **kwargs):
+            class _Resp:
+                # mimic a minimal response shape if ever touched
+                output = {"text": ""}
+            return _Resp()
+
+    _dashscope = types.ModuleType("dashscope")
+    _dashscope.Generation = _DummyGeneration
+    sys.modules["dashscope"] = _dashscope
+# -------------------------------------------------------------------------------
+
+
 # === HARD STUBS needed by EvoAgentX (must be at the very top) ===
 import sys, types
 
