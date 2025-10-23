@@ -1,6 +1,5 @@
 FROM python:3.11-slim
 
-# keep image small / no pip cache
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -8,23 +7,27 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /app
 
-# 1) install your EXACT requirements.txt (as-is)
-COPY requirements.txt /app/
+# System deps (lean)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first (layer caching)
+COPY requirements.txt /app/requirements.txt
+
+# Install deps
 RUN python -m pip install --upgrade pip && \
-    python -m pip install --no-cache-dir -r requirements.txt
+    python -m pip install --no-cache-dir -r /app/requirements.txt && \
+    python -m pip install --no-cache-dir \
+      https://github.com/EvoAgentX/EvoAgentX/archive/refs/heads/main.zip
 
-# 2) install streamlit explicitly + verify (no heredoc)
-RUN python -m pip install --no-cache-dir streamlit==1.36.0 && \
-    python -c "import streamlit; print('STREAMLIT OK:', streamlit.__version__)"
-
-# 3) install EvoAgentX via ZIP (no git, no apt-get → avoids dpkg/no-space errors)
-RUN python -m pip install --no-cache-dir \
-    https://github.com/EvoAgentX/EvoAgentX/archive/refs/heads/main.zip
-
-# 4) copy app source last (better caching)
+# Copy source last
 COPY . /app
 
-# 5) run streamlit directly
-ENV PORT=5523
-EXPOSE 5523
-CMD ["python", "-m", "streamlit", "run", "ai_Self-Evolving_agent.py", "--server.address=0.0.0.0", "--server.port=5523", "--server.enableCORS=false", "--server.enableXsrfProtection=false"]
+# --- OLLAMA CONFIG (override in Coolify as env if needed) ---
+ENV OLLAMA_BASE_URL="http://217.15.175.196:11434/v1" \
+    OLLAMA_MODEL="llama3.2:1b" \
+    OLLAMA_API_KEY="ollama"
+
+# No port needed (worker)
+CMD ["python", "ai_Self-Evolving_agent.py"]
