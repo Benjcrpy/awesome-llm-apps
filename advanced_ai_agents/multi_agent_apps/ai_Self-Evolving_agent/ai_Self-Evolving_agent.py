@@ -1,3 +1,28 @@
+# --- HARD FIX: stub 'litellm' (only what EvoAgentX imports) ---
+import sys, types
+try:
+    from litellm import token_counter, cost_per_token  # real package kung present
+except ModuleNotFoundError:
+    def token_counter(text, model=None, **kwargs):
+        # super-simple token estimate para lang hindi mag-crash
+        # approx 4 chars per token
+        try:
+            n_chars = len(text or "")
+        except Exception:
+            n_chars = 0
+        return max(1, n_chars // 4)
+
+    def cost_per_token(model=None, **kwargs):
+        # wala tayong billing calc — return 0
+        return 0.0
+
+    _litellm = types.ModuleType("litellm")
+    _litellm.token_counter = token_counter
+    _litellm.cost_per_token = cost_per_token
+    sys.modules["litellm"] = _litellm
+# ---------------------------------------------------------------
+
+
 # --- HARD FIX: stub 'overdue' para hindi mag-crash ang EvoAgentX ---
 import sys
 try:
