@@ -11,15 +11,15 @@ WORKDIR /app
 # Upgrade pip
 RUN python -m pip install --upgrade pip
 
-# Install Python deps
+# Install Python deps (lean)
 COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --no-cache-dir -r /app/requirements.txt
 
-# Install EvoAgentX (zip to keep image small)
+# Install EvoAgentX from zip
 RUN python -m pip install --no-cache-dir \
     https://github.com/EvoAgentX/EvoAgentX/archive/refs/heads/main.zip
 
-# Copy app source last (better caching)
+# Copy app source
 COPY . /app
 
 # Ollama config (set in Coolify env ideally)
@@ -29,5 +29,5 @@ ENV OLLAMA_BASE_URL="http://217.15.175.196:11434/v1" \
 # Clean caches
 RUN rm -rf /root/.cache
 
-# Headless run (tkinter is stubbed in your .py)
+# Run headless (tkinter is stubbed in your .py)
 CMD ["python", "ai_Self-Evolving_agent.py"]
