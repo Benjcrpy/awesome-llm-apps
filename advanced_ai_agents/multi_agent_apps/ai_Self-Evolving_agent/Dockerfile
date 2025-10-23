@@ -16,23 +16,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Upgrade pip
 RUN python -m pip install --upgrade pip
 
-# Project deps
+# Install Python deps
 COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --no-cache-dir -r /app/requirements.txt
 
-# EvoAgentX lib
+# Install EvoAgentX (zip to keep image small)
 RUN python -m pip install --no-cache-dir \
-      https://github.com/EvoAgentX/EvoAgentX/archive/refs/heads/main.zip
+    https://github.com/EvoAgentX/EvoAgentX/archive/refs/heads/main.zip
 
-# App source
+# Copy app source last (better caching)
 COPY . /app
 
-# Ollama config (tip: set secrets in Coolify env, not baked here)
+# Ollama config (set these in Coolify env ideally; safe defaults here)
 ENV OLLAMA_BASE_URL="http://217.15.175.196:11434/v1" \
     OLLAMA_MODEL="llama3.2:1b"
 
 # Clean caches
 RUN rm -rf /root/.cache
 
-# Worker app (no GUI, no X needed)
+# Worker entrypoint (no GUI, headless)
 CMD ["python", "ai_Self-Evolving_agent.py"]
