@@ -5,10 +5,9 @@ import sys, types
 
 # --- HARD STUB: dashscope (Aliyun) ---
 try:
-    from dashscope import Generation  # if the real SDK exists, ok
+    from dashscope import Generation
 except Exception:
     class _DummyGeneration:
-        """Minimal fake to prevent ImportError when EvoAgentX imports aliyun_model."""
         @staticmethod
         def call(*args, **kwargs):
             class _Resp:
@@ -19,7 +18,7 @@ except Exception:
     sys.modules["dashscope"] = _dashscope
 # -------------------------------------------------------------------------------
 
-# --- HARD STUB: Neo4jGraphStoreWrapper (prevent import crash on neo4j module) ---
+# --- HARD STUB: Neo4jGraphStoreWrapper (avoid real neo4j) ---
 _neo4j_mod = types.ModuleType("evoagentx.storages.graph_stores.neo4j")
 class Neo4jGraphStoreWrapper:
     def __init__(self, *args, **kwargs): pass
@@ -30,9 +29,9 @@ _neo4j_mod.Neo4jGraphStoreWrapper = Neo4jGraphStoreWrapper
 sys.modules["evoagentx.storages.graph_stores.neo4j"] = _neo4j_mod
 # -------------------------------------------------------------------------------
 
-# --- litellm stub (provide completion/acompletion + token utils) ---
+# --- litellm stub (completion/acompletion + token utils) ---
 try:
-    from litellm import completion, acompletion, token_counter, cost_per_token  # if available
+    from litellm import completion, acompletion, token_counter, cost_per_token
 except Exception:
     class _Resp:
         def __init__(self, content=""):
@@ -44,7 +43,7 @@ except Exception:
     def token_counter(text, model=None, **kwargs):
         try: n = len(text or "")
         except Exception: n = 0
-        return max(1, n // 4)  # ~4 chars/token
+        return max(1, n // 4)
     def cost_per_token(*args, **kwargs): return 0.0
     _m = types.ModuleType("litellm")
     _m.completion = completion
@@ -72,7 +71,7 @@ if 'tkinter' not in sys.modules:
     sys.modules['tkinter.filedialog'] = types.ModuleType('tkinter.filedialog')
 # -------------------------------------------------------------------------------
 
-# --- llama_index mega-stub tree (schema, embeddings, graph_stores, vector_stores, storage, azure_openai) ---
+# --- llama_index mega-stub tree (schema, embeddings, graph_stores, vector_stores, storage, indices, azure_openai) ---
 ll_pkg = types.ModuleType("llama_index")
 ll_core = types.ModuleType("llama_index.core")
 ll_schema = types.ModuleType("llama_index.core.schema")
@@ -83,6 +82,9 @@ ll_core_graph_simple = types.ModuleType("llama_index.core.graph_stores.simple")
 ll_core_vector = types.ModuleType("llama_index.core.vector_stores")
 ll_core_vector_types = types.ModuleType("llama_index.core.vector_stores.types")
 ll_core_storage = types.ModuleType("llama_index.core.storage")
+# NEW: indices
+ll_core_indices = types.ModuleType("llama_index.core.indices")
+ll_core_indices_base = types.ModuleType("llama_index.core.indices.base")
 
 ll_emb = types.ModuleType("llama_index.embeddings")
 ll_az = types.ModuleType("llama_index.embeddings.azure_openai")
@@ -153,6 +155,16 @@ class StorageContext:
     def __init__(self, *args, **kwargs): pass
 ll_core_storage.StorageContext = StorageContext
 
+# ----- NEW: core.indices.base -----
+class BaseIndex:
+    def __init__(self, *args, **kwargs): pass
+    def as_retriever(self, *args, **kwargs):
+        class _R:
+            def retrieve(self, *a, **k): return []
+        return _R()
+ll_core_indices_base.BaseIndex = BaseIndex
+ll_core_indices.base = ll_core_indices_base
+
 # ----- embeddings.azure_openai -----
 class AzureOpenAIEmbedding:
     def __init__(self, *args, **kwargs): pass
@@ -175,6 +187,9 @@ sys.modules['llama_index.core.graph_stores.simple'] = ll_core_graph_simple
 sys.modules['llama_index.core.vector_stores'] = ll_core_vector
 sys.modules['llama_index.core.vector_stores.types'] = ll_core_vector_types
 sys.modules['llama_index.core.storage'] = ll_core_storage
+# NEW:
+sys.modules['llama_index.core.indices'] = ll_core_indices
+sys.modules['llama_index.core.indices.base'] = ll_core_indices_base
 
 sys.modules['llama_index.embeddings'] = ll_emb
 sys.modules['llama_index.embeddings.azure_openai'] = ll_az
@@ -189,6 +204,7 @@ ll_core.embeddings = ll_core_emb
 ll_core.graph_stores = ll_core_graph
 ll_core.vector_stores = ll_core_vector
 ll_core.storage = ll_core_storage
+ll_core.indices = ll_core_indices
 ll_core_graph.types = ll_core_graph_types
 ll_core_graph.simple = ll_core_graph_simple
 ll_core_vector.types = ll_core_vector_types
