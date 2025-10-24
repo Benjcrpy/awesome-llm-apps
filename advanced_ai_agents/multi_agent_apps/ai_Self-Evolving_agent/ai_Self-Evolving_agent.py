@@ -232,6 +232,9 @@ ll_core_graph.types = ll_core_graph_types
 ll_core_graph.simple = ll_core_graph_simple
 ll_core_vector.types = ll_core_vector_types
 ll_core.VectorStoreIndex = VectorStoreIndex  # expose here
+ll_core.Document = Document          # <<< IMPORTANT: fixes "cannot import name 'Document' from 'llama_index.core'"
+ll_core.QueryBundle = QueryBundle    # (bonus exposure; safe and can help other imports)
+
 
 ll_pkg.embeddings = ll_emb
 ll_emb.azure_openai = ll_az
