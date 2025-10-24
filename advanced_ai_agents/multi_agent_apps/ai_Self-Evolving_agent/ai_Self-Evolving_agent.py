@@ -114,7 +114,7 @@ class QueryBundle:
         self.query_str = query_str
         self.embedding = embedding
         self.custom_embedding_strs = custom_embedding_strs or []
-class Document(BaseNode): pass  # just in case
+class Document(BaseNode): pass
 class MetadataMode:
     ALL = "ALL"
     NONE = "NONE"
@@ -150,9 +150,8 @@ class _StubGraphStore:
 ll_core_graph_types.GraphStore = _StubGraphStore
 ll_core_graph_simple.GraphStore = _StubGraphStore
 
-# >>>>>> ADDITIONS TO FIX YOUR CURRENT ERROR (Relation missing) <<<<<<
+# >>>>>> FIX: add Relation, EntityNode, ChunkNode <<<<<<
 class Relation:
-    """Minimal stand-in for a graph relation/edge."""
     def __init__(self, source_id: str = "", target_id: str = "", type: str = "", metadata: dict | None = None):
         self.source_id = source_id
         self.target_id = target_id
@@ -160,16 +159,21 @@ class Relation:
         self.metadata = metadata or {}
 
 class EntityNode:
-    """Minimal stand-in for a graph/entity node."""
     def __init__(self, id_: str = "", label: str = "", properties: dict | None = None, metadata: dict | None = None):
         self.id_ = id_
         self.label = label
         self.properties = properties or {}
         self.metadata = metadata or {}
 
-# expose these in the module
+class ChunkNode:
+    def __init__(self, id_: str = "", text: str = "", metadata: dict | None = None):
+        self.id_ = id_
+        self.text = text
+        self.metadata = metadata or {}
+# expose
 ll_core_graph_types.Relation = Relation
 ll_core_graph_types.EntityNode = EntityNode
+ll_core_graph_types.ChunkNode = ChunkNode
 # -------------------------------------------------------------------
 
 # ----- core.vector_stores (types) -----
@@ -200,7 +204,7 @@ class BaseIndex:
 ll_core_indices_base.BaseIndex = BaseIndex
 ll_core_indices.base = ll_core_indices_base
 
-# ----- VectorStoreIndex (evoagentx needs this at llama_index.core) -----
+# ----- VectorStoreIndex (exposed at llama_index.core) -----
 class VectorStoreIndex:
     def __init__(self, *args, **kwargs): pass
     @classmethod
@@ -253,7 +257,7 @@ ll_core.indices = ll_core_indices
 ll_core_graph.types = ll_core_graph_types
 ll_core_graph.simple = ll_core_graph_simple
 ll_core_vector.types = ll_core_vector_types
-ll_core.VectorStoreIndex = VectorStoreIndex  # expose here
+ll_core.VectorStoreIndex = VectorStoreIndex
 ll_core.Document = Document
 ll_core.QueryBundle = QueryBundle
 
