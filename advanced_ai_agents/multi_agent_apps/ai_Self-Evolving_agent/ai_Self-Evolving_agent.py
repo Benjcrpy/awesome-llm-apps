@@ -165,21 +165,11 @@ class BaseIndex:
             def retrieve(self, *a, **kw): return []
         return _R()
 class PropertyGraphIndex(BaseIndex):
-    def __init__(self, *a, **kw): super().__init__(*a, **kw)
     @classmethod
     def from_documents(cls, *a, **kw): return cls()
-    def as_retriever(self, *a, **kw):
-        class _R: 
-            def retrieve(self, *a, **kw): return []
-        return _R()
 class VectorStoreIndex(BaseIndex):
-    def __init__(self, *a, **kw): super().__init__(*a, **kw)
     @classmethod
     def from_documents(cls, *a, **kw): return cls()
-    def as_retriever(self, *a, **kw):
-        class _R: 
-            def retrieve(self, *a, **kw): return []
-        return _R()
 ll_core_indices_base.BaseIndex = BaseIndex
 ll_core_indices.PropertyGraphIndex = PropertyGraphIndex
 ll_core_indices.VectorStoreIndex = VectorStoreIndex
@@ -207,13 +197,25 @@ modules = {
     'llama_index.vector_stores': ll_vector_pkg, 'llama_index.vector_stores.faiss': ll_vector_faiss
 }
 for k, v in modules.items(): sys.modules[k] = v
+
+# ----- link attribute hierarchy (FIXED) -----
 ll_pkg.core = ll_core
+ll_pkg.vector_stores = ll_vector_pkg
+ll_pkg.embeddings = ll_emb
 ll_core.schema = ll_schema
 ll_core.embeddings = ll_core_emb
 ll_core.graph_stores = ll_core_graph
 ll_core.vector_stores = ll_core_vector
 ll_core.storage = ll_core_storage
 ll_core.indices = ll_core_indices
+ll_core.graph_stores.types = ll_core_graph_types
+ll_core.graph_stores.simple = ll_core_graph_simple
+ll_core.vector_stores.types = ll_core_vector_types
+ll_core.indices.base = ll_core_indices_base
+ll_core.Document = Document
+ll_core.QueryBundle = QueryBundle
+ll_core.VectorStoreIndex = VectorStoreIndex
+ll_core.PropertyGraphIndex = PropertyGraphIndex
 # =========================
 #  END HARD STUBS
 # =========================
