@@ -150,6 +150,28 @@ class _StubGraphStore:
 ll_core_graph_types.GraphStore = _StubGraphStore
 ll_core_graph_simple.GraphStore = _StubGraphStore
 
+# >>>>>> ADDITIONS TO FIX YOUR CURRENT ERROR (Relation missing) <<<<<<
+class Relation:
+    """Minimal stand-in for a graph relation/edge."""
+    def __init__(self, source_id: str = "", target_id: str = "", type: str = "", metadata: dict | None = None):
+        self.source_id = source_id
+        self.target_id = target_id
+        self.type = type
+        self.metadata = metadata or {}
+
+class EntityNode:
+    """Minimal stand-in for a graph/entity node."""
+    def __init__(self, id_: str = "", label: str = "", properties: dict | None = None, metadata: dict | None = None):
+        self.id_ = id_
+        self.label = label
+        self.properties = properties or {}
+        self.metadata = metadata or {}
+
+# expose these in the module
+ll_core_graph_types.Relation = Relation
+ll_core_graph_types.EntityNode = EntityNode
+# -------------------------------------------------------------------
+
 # ----- core.vector_stores (types) -----
 class BasePydanticVectorStore: pass
 class VectorStore: pass
@@ -232,9 +254,8 @@ ll_core_graph.types = ll_core_graph_types
 ll_core_graph.simple = ll_core_graph_simple
 ll_core_vector.types = ll_core_vector_types
 ll_core.VectorStoreIndex = VectorStoreIndex  # expose here
-ll_core.Document = Document          # <<< IMPORTANT: fixes "cannot import name 'Document' from 'llama_index.core'"
-ll_core.QueryBundle = QueryBundle    # (bonus exposure; safe and can help other imports)
-
+ll_core.Document = Document
+ll_core.QueryBundle = QueryBundle
 
 ll_pkg.embeddings = ll_emb
 ll_emb.azure_openai = ll_az
