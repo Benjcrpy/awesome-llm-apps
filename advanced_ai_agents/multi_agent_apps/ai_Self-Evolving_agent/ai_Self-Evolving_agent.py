@@ -81,14 +81,13 @@ ll_core_graph_simple = types.ModuleType("llama_index.core.graph_stores.simple")
 ll_core_vector = types.ModuleType("llama_index.core.vector_stores")
 ll_core_vector_types = types.ModuleType("llama_index.core.vector_stores.types")
 ll_core_storage = types.ModuleType("llama_index.core.storage")
-# NEW: indices
 ll_core_indices = types.ModuleType("llama_index.core.indices")
 ll_core_indices_base = types.ModuleType("llama_index.core.indices.base")
 
 ll_emb = types.ModuleType("llama_index.embeddings")
 ll_az = types.ModuleType("llama_index.embeddings.azure_openai")
 
-# Non-core vector stores path used by EvoAgentX (faiss)
+# Non-core vector stores path (faiss)
 ll_vector_pkg = types.ModuleType("llama_index.vector_stores")
 ll_vector_faiss = types.ModuleType("llama_index.vector_stores.faiss")
 
@@ -108,11 +107,26 @@ class RelatedNodeInfo:
 class NodeWithScore:
     def __init__(self, node: object, score: float = 0.0, **kwargs):
         self.node = node; self.score = score
+
+# NEW: QueryBundle + extras that evoagentx may touch
+class QueryBundle:
+    def __init__(self, query_str: str = "", embedding=None, custom_embedding_strs=None, **kwargs):
+        self.query_str = query_str
+        self.embedding = embedding
+        self.custom_embedding_strs = custom_embedding_strs or []
+class Document(BaseNode): pass  # just in case
+class MetadataMode:
+    ALL = "ALL"
+    NONE = "NONE"
+
 ll_schema.BaseNode = BaseNode
 ll_schema.TextNode = TextNode
 ll_schema.ImageNode = ImageNode
 ll_schema.RelatedNodeInfo = RelatedNodeInfo
 ll_schema.NodeWithScore = NodeWithScore
+ll_schema.QueryBundle = QueryBundle
+ll_schema.Document = Document
+ll_schema.MetadataMode = MetadataMode
 
 # ----- core.embeddings -----
 class BaseEmbedding:
@@ -154,7 +168,7 @@ class StorageContext:
     def __init__(self, *args, **kwargs): pass
 ll_core_storage.StorageContext = StorageContext
 
-# ----- NEW: core.indices.base -----
+# ----- core.indices.base -----
 class BaseIndex:
     def __init__(self, *args, **kwargs): pass
     def as_retriever(self, *args, **kwargs):
@@ -164,7 +178,7 @@ class BaseIndex:
 ll_core_indices_base.BaseIndex = BaseIndex
 ll_core_indices.base = ll_core_indices_base
 
-# ----- NEW: VectorStoreIndex (needed by evoagentx.rag.indexings.vector_index) -----
+# ----- VectorStoreIndex (evoagentx needs this at llama_index.core) -----
 class VectorStoreIndex:
     def __init__(self, *args, **kwargs): pass
     @classmethod
@@ -174,7 +188,6 @@ class VectorStoreIndex:
         class _R:
             def retrieve(self, *a, **k): return []
         return _R()
-# expose at llama_index.core level (they import: from llama_index.core import VectorStoreIndex)
 
 # ----- embeddings.azure_openai -----
 class AzureOpenAIEmbedding:
@@ -218,8 +231,7 @@ ll_core.indices = ll_core_indices
 ll_core_graph.types = ll_core_graph_types
 ll_core_graph.simple = ll_core_graph_simple
 ll_core_vector.types = ll_core_vector_types
-# expose VectorStoreIndex on core
-ll_core.VectorStoreIndex = VectorStoreIndex
+ll_core.VectorStoreIndex = VectorStoreIndex  # expose here
 
 ll_pkg.embeddings = ll_emb
 ll_emb.azure_openai = ll_az
