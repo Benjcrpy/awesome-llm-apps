@@ -10,8 +10,7 @@ except Exception:
     class _DummyGeneration:
         @staticmethod
         def call(*args, **kwargs):
-            class _Resp:
-                output = {"text": ""}
+            class _Resp: output = {"text": ""}
             return _Resp()
     _dashscope = types.ModuleType("dashscope")
     _dashscope.Generation = _DummyGeneration
@@ -165,6 +164,18 @@ class BaseIndex:
 ll_core_indices_base.BaseIndex = BaseIndex
 ll_core_indices.base = ll_core_indices_base
 
+# ----- NEW: VectorStoreIndex (needed by evoagentx.rag.indexings.vector_index) -----
+class VectorStoreIndex:
+    def __init__(self, *args, **kwargs): pass
+    @classmethod
+    def from_documents(cls, *args, **kwargs):
+        return cls()
+    def as_retriever(self, *args, **kwargs):
+        class _R:
+            def retrieve(self, *a, **k): return []
+        return _R()
+# expose at llama_index.core level (they import: from llama_index.core import VectorStoreIndex)
+
 # ----- embeddings.azure_openai -----
 class AzureOpenAIEmbedding:
     def __init__(self, *args, **kwargs): pass
@@ -187,7 +198,6 @@ sys.modules['llama_index.core.graph_stores.simple'] = ll_core_graph_simple
 sys.modules['llama_index.core.vector_stores'] = ll_core_vector
 sys.modules['llama_index.core.vector_stores.types'] = ll_core_vector_types
 sys.modules['llama_index.core.storage'] = ll_core_storage
-# NEW:
 sys.modules['llama_index.core.indices'] = ll_core_indices
 sys.modules['llama_index.core.indices.base'] = ll_core_indices_base
 
@@ -208,6 +218,8 @@ ll_core.indices = ll_core_indices
 ll_core_graph.types = ll_core_graph_types
 ll_core_graph.simple = ll_core_graph_simple
 ll_core_vector.types = ll_core_vector_types
+# expose VectorStoreIndex on core
+ll_core.VectorStoreIndex = VectorStoreIndex
 
 ll_pkg.embeddings = ll_emb
 ll_emb.azure_openai = ll_az
@@ -225,7 +237,6 @@ ll_vector_pkg.faiss = ll_vector_faiss
 import os
 from dotenv import load_dotenv
 
-# EvoAgentX (OpenAILLM -> Ollama via OpenAI-compatible endpoint)
 from evoagentx.models import OpenAILLMConfig, OpenAILLM
 from evoagentx.workflow import WorkFlowGenerator, WorkFlowGraph, WorkFlow
 from evoagentx.agents import AgentManager
@@ -239,7 +250,6 @@ load_dotenv()
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://217.15.175.196:11434/v1").rstrip("/")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
 
-# Force OpenAI SDK to talk to Ollama (dummy key is fine for Ollama)
 os.environ["OPENAI_BASE_URL"] = OLLAMA_BASE_URL
 os.environ["OPENAI_API_KEY"] = os.getenv("OLLAMA_API_KEY", "ollama")
 
@@ -255,43 +265,32 @@ def build_llm(max_tokens=16000, temperature=0.2, stream=True, output_response=Tr
     return OpenAILLM(config=cfg)
 
 def main():
-    # === LLMs ===
     llm = build_llm(max_tokens=16000, temperature=0.2)
     verification_llm = build_llm(max_tokens=20000, temperature=0.0)
 
-    # === Goal ===
     goal = "Generate html code for the Tetris game that can be played in the browser."
     target_directory = "examples/output/tetris_game"
 
-    # === Build workflow ===
     wf_generator = WorkFlowGenerator(llm=llm)
     workflow_graph: WorkFlowGraph = wf_generator.generate_workflow(goal=goal)
 
-    # Optional visual (safe-guarded)
     try:
         workflow_graph.display()
     except Exception as e:
         print(f"[warn] workflow_graph.display() skipped: {e}")
 
-    # === Agents ===
     agent_manager = AgentManager()
-    agent_manager.add_agents_from_workflow(
-        workflow_graph,
-        llm_config=llm.config
-    )
+    agent_manager.add_agents_from_workflow(workflow_graph, llm_config=llm.config)
 
-    # === Execute workflow ===
     workflow = WorkFlow(graph=workflow_graph, agent_manager=agent_manager, llm=llm)
     output = workflow.execute()
 
-    # === Verification (reuse same Ollama) ===
     code_verifier = CodeVerification()
     output = code_verifier.execute(
         llm=verification_llm,
         inputs={"requirements": goal, "code": output}
     ).verified_code
 
-    # === Extraction ===
     os.makedirs(target_directory, exist_ok=True)
     code_blocks = extract_code_blocks(output)
     if len(code_blocks) == 1:
@@ -304,10 +303,7 @@ def main():
     code_extractor = CodeExtraction()
     results = code_extractor.execute(
         llm=llm,
-        inputs={
-            "code_string": output,
-            "target_directory": target_directory,
-        }
+        inputs={"code_string": output, "target_directory": target_directory}
     )
 
     print(f"Extracted {len(results.extracted_files)} files:")
