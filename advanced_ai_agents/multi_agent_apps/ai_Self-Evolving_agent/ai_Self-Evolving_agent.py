@@ -3,7 +3,7 @@
 # =========================
 import sys, types
 
-# --- HARD STUB: dashscope (to satisfy evoagentx.models.aliyun_model import) ---
+# --- HARD STUB: dashscope (Aliyun) ---
 try:
     from dashscope import Generation  # if the real SDK exists, ok
 except Exception:
@@ -12,7 +12,6 @@ except Exception:
         @staticmethod
         def call(*args, **kwargs):
             class _Resp:
-                # mimic a minimal response shape if ever touched
                 output = {"text": ""}
             return _Resp()
     _dashscope = types.ModuleType("dashscope")
@@ -25,7 +24,6 @@ _neo4j_mod = types.ModuleType("evoagentx.storages.graph_stores.neo4j")
 class Neo4jGraphStoreWrapper:
     def __init__(self, *args, **kwargs): pass
     def as_graph_store(self):
-        # return a simple in-memory GraphStore from our llama_index stub
         from llama_index.core.graph_stores.simple import GraphStore
         return GraphStore()
 _neo4j_mod.Neo4jGraphStoreWrapper = Neo4jGraphStoreWrapper
@@ -38,11 +36,9 @@ try:
 except Exception:
     class _Resp:
         def __init__(self, content=""):
-            self.choices = [
-                type("Choice", (), {
-                    "message": type("Msg", (), {"content": content})()
-                })()
-            ]
+            self.choices = [type("Choice", (), {
+                "message": type("Msg", (), {"content": content})()
+            })()]
     async def acompletion(*args, **kwargs): return _Resp("")
     def completion(*args, **kwargs): return _Resp("")
     def token_counter(text, model=None, **kwargs):
@@ -60,7 +56,7 @@ except Exception:
 
 # --- overdue stub (timeout context) ---
 try:
-    import overdue  # real package kung meron
+    import overdue
 except ModuleNotFoundError:
     class _NoopTimeout:
         def __init__(self, *args, **kwargs): pass
@@ -69,14 +65,14 @@ except ModuleNotFoundError:
     sys.modules["overdue"] = type("overdue", (), {"timeout_set_to": _NoopTimeout})()
 # -------------------------------------------------------------------------------
 
-# --- Tkinter stubs (para hindi maghanap ng X/GUI) ---
+# --- Tkinter headless stubs ---
 if 'tkinter' not in sys.modules:
     sys.modules['tkinter'] = types.ModuleType('tkinter')
     sys.modules['tkinter.ttk'] = types.ModuleType('tkinter.ttk')
     sys.modules['tkinter.filedialog'] = types.ModuleType('tkinter.filedialog')
 # -------------------------------------------------------------------------------
 
-# --- llama_index minimal stub tree (schema, embeddings, graph_stores, vector_stores, azure_openai) ---
+# --- llama_index mega-stub tree (schema, embeddings, graph_stores, vector_stores, storage, azure_openai) ---
 ll_pkg = types.ModuleType("llama_index")
 ll_core = types.ModuleType("llama_index.core")
 ll_schema = types.ModuleType("llama_index.core.schema")
@@ -84,98 +80,80 @@ ll_core_emb = types.ModuleType("llama_index.core.embeddings")
 ll_core_graph = types.ModuleType("llama_index.core.graph_stores")
 ll_core_graph_types = types.ModuleType("llama_index.core.graph_stores.types")
 ll_core_graph_simple = types.ModuleType("llama_index.core.graph_stores.simple")
-# Vector store modules
 ll_core_vector = types.ModuleType("llama_index.core.vector_stores")
 ll_core_vector_types = types.ModuleType("llama_index.core.vector_stores.types")
+ll_core_storage = types.ModuleType("llama_index.core.storage")
 
 ll_emb = types.ModuleType("llama_index.embeddings")
 ll_az = types.ModuleType("llama_index.embeddings.azure_openai")
 
-# ----- schema -----
+# Non-core vector stores path used by EvoAgentX (faiss)
+ll_vector_pkg = types.ModuleType("llama_index.vector_stores")
+ll_vector_faiss = types.ModuleType("llama_index.vector_stores.faiss")
+
+# ----- core.schema -----
 class BaseNode:
     def __init__(self, text: str = "", id_: str | None = None, metadata: dict | None = None, **kwargs):
         self.text = text
         self.id_ = id_ or "stub"
         self.metadata = metadata or {}
-
 class TextNode(BaseNode): pass
-
 class ImageNode(BaseNode):
     def __init__(self, image: bytes | None = None, **kwargs):
-        super().__init__(**kwargs)
-        self.image = image
-
+        super().__init__(**kwargs); self.image = image
 class RelatedNodeInfo:
     def __init__(self, node_id: str | None = None, metadata: dict | None = None, **kwargs):
-        self.node_id = node_id or "stub-related"
-        self.metadata = metadata or {}
-
+        self.node_id = node_id or "stub-related"; self.metadata = metadata or {}
 class NodeWithScore:
     def __init__(self, node: object, score: float = 0.0, **kwargs):
-        self.node = node
-        self.score = score
-
+        self.node = node; self.score = score
 ll_schema.BaseNode = BaseNode
 ll_schema.TextNode = TextNode
 ll_schema.ImageNode = ImageNode
 ll_schema.RelatedNodeInfo = RelatedNodeInfo
 ll_schema.NodeWithScore = NodeWithScore
 
-# ----- embeddings -----
+# ----- core.embeddings -----
 class BaseEmbedding:
     def __init__(self, *args, **kwargs): pass
-    def get_text_embedding(self, text: str):
-        return [0.0]
-    def get_text_embedding_batch(self, texts):
-        return [[0.0] for _ in texts]
+    def get_text_embedding(self, text: str): return [0.0]
+    def get_text_embedding_batch(self, texts): return [[0.0] for _ in texts]
 ll_core_emb.BaseEmbedding = BaseEmbedding
 
-# ----- graph stores (types + simple) -----
+# ----- core.graph_stores (types + simple) -----
 class _StubGraphStore:
     def __init__(self, *args, **kwargs):
-        self._nodes = {}
-        self._edges = []
-    def add_node(self, node_id: str, **kwargs):
-        self._nodes[node_id] = kwargs
+        self._nodes = {}; self._edges = []
+    def add_node(self, node_id: str, **kwargs): self._nodes[node_id] = kwargs
     def add_nodes(self, nodes):
-        for n in nodes:
-            self.add_node(getattr(n, "id_", "node"), obj=n)
-    def add_edge(self, src: str, dst: str, **kwargs):
-        self._edges.append((src, dst, kwargs))
+        for n in nodes: self.add_node(getattr(n, "id_", "node"), obj=n)
+    def add_edge(self, src: str, dst: str, **kwargs): self._edges.append((src, dst, kwargs))
     def get(self, *args, **kwargs): return None
     def get_all(self, *args, **kwargs): return []
     def query(self, *args, **kwargs): return []
     def put(self, *args, **kwargs): pass
-
 ll_core_graph_types.GraphStore = _StubGraphStore
 ll_core_graph_simple.GraphStore = _StubGraphStore
 
-# ----- vector stores (types) -----
-class BasePydanticVectorStore:
-    """Dummy base to satisfy evoagentx.storages.vectore_stores.base import."""
-    def __init__(self, *args, **kwargs): pass
-
-class _StubVectorStore(BasePydanticVectorStore):
-    """Ultra-minimal VectorStore API to satisfy evoagentx imports."""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._docs = []  # (id, embedding, metadata)
-    def add(self, nodes=None, embeddings=None, ids=None, metadatas=None, **kwargs):
-        nodes = nodes or []
-        embeddings = embeddings or [[] for _ in nodes]
-        ids = ids or [getattr(n, "id_", f"id{idx}") for idx, n in enumerate(nodes)]
-        metadatas = metadatas or [{} for _ in nodes]
-        for i, n in enumerate(nodes):
-            self._docs.append((ids[i], embeddings[i], metadatas[i]))
-        return ids
-    def query(self, query_embedding=None, top_k: int = 5, **kwargs):
-        # return empty results; evoagentx won't rely on real vectors in this setup
-        return []
-
+# ----- core.vector_stores (types) -----
+class BasePydanticVectorStore: pass
+class VectorStore: pass
 ll_core_vector_types.BasePydanticVectorStore = BasePydanticVectorStore
-ll_core_vector_types.VectorStore = _StubVectorStore
+ll_core_vector_types.VectorStore = VectorStore
 
-# ----- azure_openai embeddings -----
+# ----- non-core vector_stores.faiss -----
+class FaissMapVectorStore:
+    def __init__(self, *args, **kwargs): pass
+    def add(self, *args, **kwargs): pass
+    def query(self, *args, **kwargs): return []
+ll_vector_faiss.FaissMapVectorStore = FaissMapVectorStore
+
+# ----- core.storage -----
+class StorageContext:
+    def __init__(self, *args, **kwargs): pass
+ll_core_storage.StorageContext = StorageContext
+
+# ----- embeddings.azure_openai -----
 class AzureOpenAIEmbedding:
     def __init__(self, *args, **kwargs): pass
     def get_text_embedding(self, text: str): return [0.0]
@@ -196,61 +174,33 @@ sys.modules['llama_index.core.graph_stores.types'] = ll_core_graph_types
 sys.modules['llama_index.core.graph_stores.simple'] = ll_core_graph_simple
 sys.modules['llama_index.core.vector_stores'] = ll_core_vector
 sys.modules['llama_index.core.vector_stores.types'] = ll_core_vector_types
+sys.modules['llama_index.core.storage'] = ll_core_storage
+
 sys.modules['llama_index.embeddings'] = ll_emb
 sys.modules['llama_index.embeddings.azure_openai'] = ll_az
+
+sys.modules['llama_index.vector_stores'] = ll_vector_pkg
+sys.modules['llama_index.vector_stores.faiss'] = ll_vector_faiss
 
 # ----- link attribute hierarchy -----
 ll_pkg.core = ll_core
 ll_core.schema = ll_schema
 ll_core.embeddings = ll_core_emb
 ll_core.graph_stores = ll_core_graph
-ll_core.graph_stores.types = ll_core_graph_types
-ll_core.graph_stores.simple = ll_core_graph_simple
 ll_core.vector_stores = ll_core_vector
+ll_core.storage = ll_core_storage
+ll_core_graph.types = ll_core_graph_types
+ll_core_graph.simple = ll_core_graph_simple
 ll_core_vector.types = ll_core_vector_types
+
 ll_pkg.embeddings = ll_emb
 ll_emb.azure_openai = ll_az
+
+ll_pkg.vector_stores = ll_vector_pkg
+ll_vector_pkg.faiss = ll_vector_faiss
 # =========================
 #  END HARD STUBS
 # =========================
-
-# === EXTRA STUB: llama_index.vector_stores.faiss ===
-import sys, types
-
-# Kung wala pa ang parent package na 'llama_index', siguraduhing meron
-if "llama_index" not in sys.modules:
-    sys.modules["llama_index"] = types.ModuleType("llama_index")
-
-# Create / reuse 'llama_index.vector_stores' tree
-_li_vs_pkg = sys.modules.get("llama_index.vector_stores") or types.ModuleType("llama_index.vector_stores")
-_li_vs_faiss = types.ModuleType("llama_index.vector_stores.faiss")
-
-class FaissMapVectorStore:
-    """Super minimal fake Faiss store; sapat lang para hindi mag-crash ang EvoAgentX."""
-    def __init__(self, *args, **kwargs):
-        self._docs = []   # [(id, embedding, metadata)]
-    def add(self, nodes=None, embeddings=None, ids=None, metadatas=None, **kwargs):
-        nodes = nodes or []
-        embeddings = embeddings or [[] for _ in nodes]
-        ids = ids or [getattr(n, "id_", f"id{idx}") for idx, n in enumerate(nodes)]
-        metadatas = metadatas or [{} for _ in nodes]
-        for i, n in enumerate(nodes):
-            self._docs.append((ids[i], embeddings[i], metadatas[i]))
-        return ids
-    def query(self, query_embedding=None, top_k: int = 5, **kwargs):
-        # dummy result; walang tunay na similarity search
-        return []
-
-_li_vs_faiss.FaissMapVectorStore = FaissMapVectorStore
-
-# I-register sa sys.modules at i-wire ang hierarchy
-sys.modules["llama_index.vector_stores"] = _li_vs_pkg
-sys.modules["llama_index.vector_stores.faiss"] = _li_vs_faiss
-
-# expose as attributes para gumana ang dotted access
-setattr(sys.modules["llama_index"], "vector_stores", _li_vs_pkg)
-setattr(_li_vs_pkg, "faiss", _li_vs_faiss)
-# === END EXTRA STUB ===
 
 
 # =============
