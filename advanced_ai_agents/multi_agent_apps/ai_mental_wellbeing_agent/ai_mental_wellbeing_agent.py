@@ -112,69 +112,7 @@ st.sidebar.warning(
     "- Seek immediate professional help."
 )
 
-# -----------------------------
-#   HISTORY (SIDEBAR)
-# -----------------------------
-st.sidebar.markdown("## 📜 History")
 
-history_entries = _read_history()
-st.sidebar.caption(f"Saved entries: **{len(history_entries)}**")
-
-if history_entries:
-    # Export All button
-    st.sidebar.download_button(
-        "⬇️ Export All (JSON)",
-        data=json.dumps(history_entries, indent=2, ensure_ascii=False),
-        file_name=f"ct_history_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
-        mime="application/json",
-        key="export_all",
-        use_container_width=True,
-    )
-
-    # Clear all
-    if st.sidebar.button("🧹 Clear History", key="clear_hist", use_container_width=True):
-        _write_history([])
-        _safe_rerun()
-
-    st.sidebar.divider()
-
-    # Compact list (latest first)
-    for idx, item in enumerate(history_entries[:20], start=1):
-        entry_id = item.get("id", "")
-        title = f"[{item.get('created_at','')}] • {item.get('provider','?')} • {item.get('model','?')}"
-        with st.sidebar.expander(f"{idx}. {title}", expanded=False):
-            # --- Preview of inputs ---
-            inp = item.get("inputs", {})
-            st.caption(f"Stress: {inp.get('stress_level','?')}/10 • Sleep: {inp.get('sleep_pattern','?')}h")
-            if inp.get("current_symptoms"):
-                st.caption(f"Symptoms: {', '.join(inp.get('current_symptoms', []))[:60]}")
-
-            # --- NEW: Show generated outputs inside the sidebar entry ---
-            outs = item.get("outputs", {})
-            if outs:
-                with st.expander("🧾 Assessment Summary", expanded=False):
-                    st.markdown(outs.get("assessment", "_No assessment saved._"))
-                with st.expander("🛠️ Action Plan", expanded=False):
-                    st.markdown(outs.get("action", "_No action plan saved._"))
-                with st.expander("📅 Long-term Strategy", expanded=False):
-                    st.markdown(outs.get("followup", "_No long-term strategy saved._"))
-
-            # Export single
-            st.download_button(
-                "⬇️ Export Entry (JSON)",
-                data=json.dumps(item, indent=2, ensure_ascii=False),
-                file_name=f"ct_entry_{entry_id}.json",
-                mime="application/json",
-                key=f"dl_{entry_id}",
-                use_container_width=True,
-            )
-
-            # Delete single
-            if st.button("🗑️ Delete Entry", key=f"del_{entry_id}", use_container_width=True):
-                delete_history_entry(entry_id)
-                _safe_rerun()
-else:
-    st.sidebar.info("No history yet — generate a plan to see entries here.")
 
 # -----------------------------
 #   MAIN UI
