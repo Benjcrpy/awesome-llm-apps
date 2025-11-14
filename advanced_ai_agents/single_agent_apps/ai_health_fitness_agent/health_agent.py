@@ -1,7 +1,8 @@
 import streamlit as st
-from agno.agent import Agent
-from agno.run.agent import RunOutput
+from agno.agent import Agent, RunOutput
 from agno.models.google import Gemini
+from agno.models.openai.like import OpenAILike
+
 
 st.set_page_config(
     page_title="AI Health & Fitness Planner",
@@ -69,29 +70,59 @@ available equipment, and dietary restrictions.
         unsafe_allow_html=True,
     )
 
-    # Sidebar – Gemini API key
+    # =========================
+    #       MODEL SETTINGS
+    # =========================
     with st.sidebar:
-        st.header("🔑 API Configuration")
+        st.header("🧠 LLM Configuration")
 
-        gemini_api_key = st.text_input(
-            "Gemini API Key",
-            type="password",
-            help="Enter your Gemini API key to access the service.",
+        # Default: Ollama
+        llm_provider = st.radio(
+            "Primary LLM Provider",
+            options=["Ollama (Llama 3.2 1B)", "Gemini"],
+            index=0,
+            help="Ollama is used by default. Switch to Gemini if you prefer Google Gemini.",
         )
 
-        if not gemini_api_key:
-            st.warning("⚠️ Please enter your Gemini API Key to proceed.")
-            st.markdown("[Get your API key here](https://aistudio.google.com/apikey)")
-            return
+        # Ollama via OpenAI-compatible endpoint
+        # Uses your base URL: http://217.15.175.196:11434/v1
+        ollama_model = OpenAILike(
+            id="llama3.2:1b",
+            base_url="http://217.15.175.196:11434/v1",
+            api_key="ollama-not-used",
+        )
 
-        st.success("API Key accepted! ✅")
+        active_model = None
 
-        try:
-            # Stable model
-            gemini_model = Gemini(id="gemini-2.0-flash", api_key=gemini_api_key)
-        except Exception as e:
-            st.error(f"❌ Error initializing Gemini model: {e}")
-            return
+        if "Ollama" in llm_provider:
+            active_model = ollama_model
+            st.success(
+                "Using Ollama (llama3.2:1b) at http://217.15.175.196:11434/v1 as the primary LLM."
+            )
+            st.caption(
+                "Requests are sent to your remote Ollama server using an OpenAI-compatible API."
+            )
+        else:
+            st.subheader("Gemini Settings")
+            gemini_api_key = st.text_input(
+                "Gemini API Key",
+                type="password",
+                help="Enter your Gemini API key to use Google Gemini instead of Ollama.",
+            )
+
+            if not gemini_api_key:
+                st.warning(
+                    "Please enter your Gemini API Key to use Gemini, "
+                    "or switch back to Ollama in the selector above."
+                )
+                return
+
+            try:
+                active_model = Gemini(id="gemini-2.0-flash", api_key=gemini_api_key)
+                st.success("Gemini configured successfully. ✅")
+            except Exception as e:
+                st.error(f"❌ Error initializing Gemini model: {e}")
+                return
 
     # =========================
     #       USER PROFILE
@@ -253,7 +284,7 @@ available equipment, and dietary restrictions.
                 dietary_agent = Agent(
                     name="Dietary Expert",
                     role="Provides personalized dietary recommendations.",
-                    model=gemini_model,
+                    model=active_model,
                     instructions=[
                         "Consider the user's full profile, including age, sex, weight, "
                         "height, activity level, fitness goals, dietary restrictions, "
@@ -275,7 +306,7 @@ available equipment, and dietary restrictions.
                 fitness_agent = Agent(
                     name="Fitness Expert",
                     role="Provides personalized fitness recommendations.",
-                    model=gemini_model,
+                    model=active_model,
                     instructions=[
                         "Provide exercises tailored to the user's goals and fitness level.",
                         "ONLY prescribe exercises that can realistically be performed with the "
@@ -362,12 +393,12 @@ User Profile:
                     full_context = f"{context}\n\nUser Question: {question_input}"
 
                     try:
-                        agent = Agent(
-                            model=gemini_model,
+                        qa_agent = Agent(
+                            model=active_model,
                             debug_mode=True,
                             markdown=True,
                         )
-                        run_response: RunOutput = agent.run(full_context)
+                        run_response: RunOutput = qa_agent.run(full_context)
 
                         if hasattr(run_response, "content"):
                             answer = run_response.content
@@ -376,7 +407,9 @@ User Profile:
 
                         st.session_state.qa_pairs.append((question_input, answer))
                     except Exception as e:
-                        st.error(f"❌ An error occurred while getting the answer: {e}")
+                        st.error(
+                            f"❌ An error occurred while getting the answer: {e}"
+                        )
 
     # Q&A history
     if st.session_state.qa_pairs:
