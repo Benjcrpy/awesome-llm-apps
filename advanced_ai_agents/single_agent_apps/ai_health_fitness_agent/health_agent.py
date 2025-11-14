@@ -1,4 +1,3 @@
-import re
 import streamlit as st
 from agno.agent import Agent
 from agno.run.agent import RunOutput
@@ -196,7 +195,7 @@ def main():
 
         col_profile_left, col_profile_right = st.columns(2)
 
-        # defaults to avoid reference before assignment
+        # init so they're always defined
         height_cm = 0.0
         height_text = ""
 
@@ -227,28 +226,27 @@ def main():
                 )
                 height_text = f"{height_cm:.1f} cm"
             else:
-                height_raw = st.text_input(
-                    "Height (ft/in)",
-                    placeholder='e.g. 5\'6" or 5 ft 6 in',
-                    help="You can type formats like 5'6, 5'6\", 5 ft 6 in, or 5 6.",
-                )
-                height_raw_stripped = height_raw.strip()
-                if height_raw_stripped:
-                    numbers = re.findall(r"\\d+\\.?\\d*", height_raw_stripped)
-                    if numbers:
-                        feet = float(numbers[0])
-                        inches = float(numbers[1]) if len(numbers) >= 2 else 0.0
-                        total_inches = feet * 12.0 + inches
-                        height_cm = total_inches * 2.54
-                        height_text = (
-                            f"{feet:g} ft {inches:g} in (~{height_cm:.1f} cm)"
-                        )
-                    else:
-                        height_cm = 0.0
-                        height_text = height_raw_stripped
-                else:
-                    height_cm = 0.0
-                    height_text = ""
+                col_ft, col_in = st.columns(2)
+                with col_ft:
+                    feet = st.number_input(
+                        "Feet",
+                        min_value=3.0,
+                        max_value=8.0,
+                        step=1.0,
+                        value=5.0,
+                    )
+                with col_in:
+                    inches = st.number_input(
+                        "Inches",
+                        min_value=0.0,
+                        max_value=11.9,
+                        step=0.5,
+                        value=6.0,
+                    )
+
+                total_inches = feet * 12.0 + inches
+                height_cm = total_inches * 2.54
+                height_text = f"{feet:g} ft {inches:g} in (~{height_cm:.1f} cm)"
 
             activity_level = st.selectbox(
                 "Activity Level *",
@@ -370,12 +368,8 @@ def main():
     if submitted:
         errors = []
 
-        if age is None:
-            errors.append("Please enter your age.")
         if height_cm <= 0:
-            errors.append(
-                "Please enter a valid height (cm or a valid feet/inches format like 5'6\")."
-            )
+            errors.append("Please enter a valid height (cm or ft/in).")
         if weight_kg <= 0:
             errors.append("Please enter a valid weight.")
         if not activity_level:
