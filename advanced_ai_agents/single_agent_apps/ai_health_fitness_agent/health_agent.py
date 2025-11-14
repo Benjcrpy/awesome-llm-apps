@@ -1,5 +1,6 @@
 import streamlit as st
-from agno.agent import Agent, RunOutput
+from agno.agent import Agent
+from agno.run.agent import RunOutput
 from agno.models.google import Gemini
 from agno.models.openai.like import OpenAILike
 
@@ -71,54 +72,71 @@ available equipment, and dietary restrictions.
     )
 
     # =========================
-    #       MODEL SETTINGS
+    #       SETTINGS / LLM
     # =========================
     with st.sidebar:
-        st.header("🧠 LLM Configuration")
+        st.header("⚙️ Settings")
 
-        # Default: Ollama
-        llm_provider = st.radio(
-            "Primary LLM Provider",
-            options=["Ollama (Llama 3.2 1B)", "Gemini"],
-            index=0,
-            help="Ollama is used by default. Switch to Gemini if you prefer Google Gemini.",
-        )
+        # (Optional) link to your site or docs
+        st.markdown("[🌐 CerebraTech Website](https://cerebratech.xyz)")
 
-        # Ollama via OpenAI-compatible endpoint
-        # Uses your base URL: http://217.15.175.196:11434/v1
-        ollama_model = OpenAILike(
-            id="llama3.2:1b",
-            base_url="http://217.15.175.196:11434/v1",
-            api_key="ollama-not-used",
+        st.markdown("---")
+
+        provider = st.selectbox(
+            "Choose an LLM Provider",
+            options=["Ollama (no key required)", "Gemini"],
         )
 
         active_model = None
 
-        if "Ollama" in llm_provider:
-            active_model = ollama_model
-            st.success(
-                "Using Ollama (llama3.2:1b) at http://217.15.175.196:11434/v1 as the primary LLM."
+        if provider.startswith("Ollama"):
+            st.info("Using Ollama — no API key required.")
+
+            ollama_base_url = st.text_input(
+                "Ollama Base URL",
+                value="http://217.15.175.196:11434/v1",
             )
-            st.caption(
-                "Requests are sent to your remote Ollama server using an OpenAI-compatible API."
+
+            ollama_model_name = st.text_input(
+                "Ollama Model",
+                value="llama3.2:1b",
             )
+
+            # OpenAI-compatible client pointing to Ollama
+            active_model = OpenAILike(
+                id=ollama_model_name,
+                base_url=ollama_base_url,
+                api_key="ollama-no-key-required",
+            )
+
         else:
             st.subheader("Gemini Settings")
+
             gemini_api_key = st.text_input(
-                "Gemini API Key",
+                "Enter your Gemini API Key",
                 type="password",
-                help="Enter your Gemini API key to use Google Gemini instead of Ollama.",
+                help="This key is used to call Google Gemini models.",
+            )
+
+            gemini_base_url = st.text_input(
+                "Optional: Gemini Base URL",
+                placeholder="leave blank for default Gemini endpoint",
+                help="Most users can leave this empty.",
             )
 
             if not gemini_api_key:
                 st.warning(
-                    "Please enter your Gemini API Key to use Gemini, "
-                    "or switch back to Ollama in the selector above."
+                    "Please enter your Gemini API Key, or switch back to Ollama above."
                 )
                 return
 
             try:
-                active_model = Gemini(id="gemini-2.0-flash", api_key=gemini_api_key)
+                # We ignore gemini_base_url because the Gemini model
+                # in agno handles its own endpoint configuration.
+                active_model = Gemini(
+                    id="gemini-2.0-flash",
+                    api_key=gemini_api_key,
+                )
                 st.success("Gemini configured successfully. ✅")
             except Exception as e:
                 st.error(f"❌ Error initializing Gemini model: {e}")
