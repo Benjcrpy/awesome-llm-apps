@@ -52,7 +52,7 @@ def display_fitness_plan(plan_content):
 
 
 def main():
-    # Session state initialization
+    # ---------------- Session state ----------------
     if "dietary_plan" not in st.session_state:
         st.session_state.dietary_plan = {}
     if "fitness_plan" not in st.session_state:
@@ -62,24 +62,19 @@ def main():
     if "plans_generated" not in st.session_state:
         st.session_state.plans_generated = False
 
-    st.title("️‍♂️ AI Health & Fitness Planner")
+    # ---------------- Page header ----------------
+    st.markdown("## ♂️ AI Health & Fitness Planner")
     st.markdown(
-        """
-Get personalized dietary and fitness plans tailored to your goals, body metrics,
-available equipment, and dietary restrictions.
-""",
-        unsafe_allow_html=True,
+        "Get personalized dietary and fitness plans tailored to your goals, "
+        "body metrics, available equipment, and dietary restrictions."
     )
 
     # =========================
-    #       SETTINGS / LLM
+    #         SIDEBAR
     # =========================
     with st.sidebar:
         st.header("⚙️ Settings")
-
-        # (Optional) link to your site or docs
         st.markdown("[🌐 CerebraTech Website](https://cerebratech.xyz)")
-
         st.markdown("---")
 
         provider = st.selectbox(
@@ -102,7 +97,6 @@ available equipment, and dietary restrictions.
                 value="llama3.2:1b",
             )
 
-            # OpenAI-compatible client pointing to Ollama
             active_model = OpenAILike(
                 id=ollama_model_name,
                 base_url=ollama_base_url,
@@ -118,7 +112,7 @@ available equipment, and dietary restrictions.
                 help="This key is used to call Google Gemini models.",
             )
 
-            gemini_base_url = st.text_input(
+            st.text_input(
                 "Optional: Gemini Base URL",
                 placeholder="leave blank for default Gemini endpoint",
                 help="Most users can leave this empty.",
@@ -131,8 +125,6 @@ available equipment, and dietary restrictions.
                 return
 
             try:
-                # We ignore gemini_base_url because the Gemini model
-                # in agno handles its own endpoint configuration.
                 active_model = Gemini(
                     id="gemini-2.0-flash",
                     api_key=gemini_api_key,
@@ -143,22 +135,20 @@ available equipment, and dietary restrictions.
                 return
 
     # =========================
-    #       USER PROFILE
+    #       PROFILE SECTION
     # =========================
-    st.header("🧍‍♂️ Your Profile")
+    st.markdown("### 🧍 Your Profile")
 
-    col1, col2 = st.columns(2)
+    col_profile_left, col_profile_right = st.columns(2)
 
-    with col1:
+    with col_profile_left:
         age = st.number_input(
             "Age",
             min_value=10,
             max_value=100,
             step=1,
-            help="Enter your age.",
         )
 
-        # HEIGHT with unit toggle
         st.markdown("#### Height")
         height_unit = st.radio(
             "Height Unit",
@@ -178,22 +168,16 @@ available equipment, and dietary restrictions.
             )
             height_text = f"{height_cm:.1f} cm"
         else:
-            height_ft = st.number_input(
-                "Height (ft)",
-                min_value=3,
-                max_value=8,
-                value=5,
-            )
-            height_in = st.number_input(
-                "Additional inches",
-                min_value=0.0,
-                max_value=11.9,
-                step=0.1,
-                value=7.0,
-            )
-            total_inches = height_ft * 12 + height_in
+            height_ft, height_in_col = st.columns([1, 1])
+            with height_ft:
+                ft = st.number_input("Feet", min_value=3, max_value=8, value=5)
+            with height_in_col:
+                inch = st.number_input(
+                    "Inches", min_value=0.0, max_value=11.9, step=0.1, value=7.0
+                )
+            total_inches = ft * 12 + inch
             height_cm = total_inches * 2.54
-            height_text = f"{height_ft} ft {height_in:.1f} in (~{height_cm:.1f} cm)"
+            height_text = f"{ft} ft {inch:.1f} in (~{height_cm:.1f} cm)"
 
         activity_level = st.selectbox(
             "Activity Level",
@@ -204,50 +188,9 @@ available equipment, and dietary restrictions.
                 "Very Active",
                 "Extremely Active",
             ],
-            help="Choose your typical activity level.",
         )
 
-        # DIETARY RESTRICTIONS as checkboxes
-        st.markdown("#### Dietary Restrictions / Preferences")
-        st.caption("You can select one or multiple options.")
-        dietary_options = [
-            "No Red Meat",
-            "No Pork",
-            "No Chicken",
-            "No Seafood",
-            "Dairy Free",
-            "Gluten Free",
-            "Nut Free",
-            "Egg Free",
-            "Vegetarian",
-            "Vegan",
-            "Pescatarian",
-            "Halal",
-            "Kosher",
-            "Low Carb",
-            "Low Fat",
-        ]
-        dietary_restrictions = []
-        for opt in dietary_options:
-            if st.checkbox(opt, key=f"diet_{opt.replace(' ', '_').lower()}"):
-                dietary_restrictions.append(opt)
-
-        # Equipment / tools
-        equipment = st.text_area(
-            "Available Equipment / Tools",
-            placeholder=(
-                "Example: bodyweight only, adjustable dumbbells, barbell, resistance bands, "
-                "treadmill, stationary bike, pull-up bar, kettlebells, air fryer, oven, "
-                "microwave, blender, meal-prep containers, etc."
-            ),
-            help=(
-                "List all workout and kitchen tools you have. "
-                "The plan will be adapted to the tools you actually own."
-            ),
-        )
-
-    with col2:
-        # WEIGHT with unit toggle
+    with col_profile_right:
         st.markdown("#### Weight")
         weight_unit = st.radio(
             "Weight Unit",
@@ -288,17 +231,73 @@ available equipment, and dietary restrictions.
                 "Stay Fit",
                 "Strength Training",
             ],
-            help="What do you want to achieve?",
+        )
+
+    # =========================
+    #  DIETARY + EQUIPMENT UI
+    # =========================
+    st.markdown("### 🥗 Dietary Preferences & Equipment")
+
+    dietary_col, equipment_col = st.columns([3, 2])
+
+    with dietary_col:
+        st.markdown("**Dietary Restrictions / Preferences**")
+        st.caption("You can select one or multiple options.")
+
+        dietary_options = [
+            "No Red Meat",
+            "No Pork",
+            "No Chicken",
+            "No Seafood",
+            "Dairy Free",
+            "Gluten Free",
+            "Nut Free",
+            "Egg Free",
+            "Vegetarian",
+            "Vegan",
+            "Pescatarian",
+            "Halal",
+            "Kosher",
+            "Low Carb",
+            "Low Fat",
+        ]
+
+        # two-column checkbox layout
+        col_a, col_b = st.columns(2)
+        dietary_restrictions = []
+
+        for i, opt in enumerate(dietary_options):
+            target_col = col_a if i % 2 == 0 else col_b
+            with target_col:
+                if st.checkbox(opt, key=f"diet_{opt.replace(' ', '_').lower()}"):
+                    dietary_restrictions.append(opt)
+
+    with equipment_col:
+        equipment = st.text_area(
+            "Available Equipment / Tools",
+            placeholder=(
+                "Example: bodyweight only, pull-up bar, adjustable dumbbells, "
+                "resistance bands, kettlebells, treadmill, air fryer, oven, etc."
+            ),
+            help="The workout and meal plan will adapt to the equipment you list here.",
+            height=140,
         )
 
     dietary_restrictions_text = (
         ", ".join(dietary_restrictions) if dietary_restrictions else "None specified"
     )
 
-    if st.button("✨ Generate My Personalized Plan", use_container_width=True):
+    # =========================
+    #       GENERATE PLANS
+    # =========================
+    st.markdown("---")
+    generate_clicked = st.button(
+        "✨ Generate My Personalized Plan", use_container_width=True
+    )
+
+    if generate_clicked:
         with st.spinner("Creating your personalized health and fitness routine..."):
             try:
-                # Dietary agent
                 dietary_agent = Agent(
                     name="Dietary Expert",
                     role="Provides personalized dietary recommendations.",
@@ -308,10 +307,8 @@ available equipment, and dietary restrictions.
                         "height, activity level, fitness goals, dietary restrictions, "
                         "and available equipment/tools.",
                         "Respect ALL dietary restrictions and preferences listed by the user. "
-                        "Do not include any ingredient that violates those restrictions "
-                        "(e.g., no red meat if the user selected 'No Red Meat').",
+                        "Do not include any ingredient that violates those restrictions.",
                         "Take into account the user's available kitchen tools and equipment "
-                        "(e.g., air fryer, oven, microwave, blender, meal-prep containers) "
                         "when suggesting meals and preparation methods.",
                         "Suggest a detailed meal plan for the day, including breakfast, "
                         "lunch, dinner, and snacks.",
@@ -320,7 +317,6 @@ available equipment, and dietary restrictions.
                     ],
                 )
 
-                # Fitness agent
                 fitness_agent = Agent(
                     name="Fitness Expert",
                     role="Provides personalized fitness recommendations.",
@@ -338,7 +334,6 @@ available equipment, and dietary restrictions.
                     ],
                 )
 
-                # User profile passed to agents
                 user_profile = f"""
 User Profile:
 - Age: {age}
@@ -392,10 +387,11 @@ User Profile:
             except Exception as e:
                 st.error(f"❌ An error occurred: {e}")
 
-    # Q&A section
+    # =========================
+    #          Q&A
+    # =========================
     if st.session_state.plans_generated:
-        st.header("❓ Questions about your plan?")
-
+        st.markdown("### ❓ Questions about your plan?")
         question_input = st.text_input("Ask a question about your plan:")
 
         if st.button("💬 Get Answer"):
@@ -429,9 +425,8 @@ User Profile:
                             f"❌ An error occurred while getting the answer: {e}"
                         )
 
-    # Q&A history
     if st.session_state.qa_pairs:
-        st.header("📚 Q&A History")
+        st.markdown("### 📚 Q&A History")
         for question, answer in st.session_state.qa_pairs:
             st.markdown(f"**Q:** {question}")
             st.markdown(f"**A:** {answer}")
