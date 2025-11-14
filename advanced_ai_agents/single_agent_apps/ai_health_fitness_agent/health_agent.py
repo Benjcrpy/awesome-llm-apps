@@ -195,7 +195,7 @@ def main():
 
         col_profile_left, col_profile_right = st.columns(2)
 
-        # init values
+        # init vars so they always exist
         height_cm = 0.0
         height_text = ""
         weight_kg = 0.0
@@ -209,6 +209,7 @@ def main():
                 step=1,
             )
 
+            # ---------- HEIGHT ----------
             st.markdown("#### Height *")
             height_unit = st.radio(
                 "Height Unit",
@@ -232,27 +233,27 @@ def main():
             else:
                 col_ft, col_in = st.columns(2)
                 with col_ft:
-                    feet = st.number_input(
-                        "Feet",
+                    height_ft = st.number_input(
+                        "Height (ft)",
                         min_value=3.0,
                         max_value=8.0,
                         step=1.0,
                         value=5.0,
-                        key="height_feet_input",
+                        key="height_ft_input",
                     )
                 with col_in:
-                    inches = st.number_input(
+                    height_in = st.number_input(
                         "Inches",
                         min_value=0.0,
                         max_value=11.9,
                         step=0.5,
                         value=6.0,
-                        key="height_inches_input",
+                        key="height_in_input",
                     )
 
-                total_inches = feet * 12.0 + inches
+                total_inches = height_ft * 12.0 + height_in
                 height_cm = total_inches * 2.54
-                height_text = f"{feet:g} ft {inches:g} in (~{height_cm:.1f} cm)"
+                height_text = f"{height_ft:g} ft {height_in:g} in (~{height_cm:.1f} cm)"
 
             activity_level = st.selectbox(
                 "Activity Level *",
@@ -266,6 +267,7 @@ def main():
             )
 
         with col_profile_right:
+            # ---------- WEIGHT ----------
             st.markdown("#### Weight *")
             weight_unit = st.radio(
                 "Weight Unit",
@@ -311,7 +313,7 @@ def main():
                 ],
             )
 
-        st.markdown("</div>", unsafe_allow_html=True)  # close card
+        st.markdown("</div>", unsafe_allow_html=True)  # close profile card
         st.markdown("")
 
         # ---- Dietary + Equipment Card ----
@@ -365,7 +367,7 @@ def main():
                 height=140,
             )
 
-        st.markdown("</div>", unsafe_allow_html=True)  # close card
+        st.markdown("</div>", unsafe_allow_html=True)  # close dietary card
         st.markdown("")
         st.markdown("---")
 
@@ -401,6 +403,7 @@ def main():
 
         with st.spinner("Creating your personalized health and fitness routine..."):
             try:
+                # Dietary agent
                 dietary_agent = Agent(
                     name="Dietary Expert",
                     role="Provides personalized dietary recommendations.",
@@ -420,6 +423,7 @@ def main():
                     ],
                 )
 
+                # Fitness agent
                 fitness_agent = Agent(
                     name="Fitness Expert",
                     role="Provides personalized fitness recommendations.",
