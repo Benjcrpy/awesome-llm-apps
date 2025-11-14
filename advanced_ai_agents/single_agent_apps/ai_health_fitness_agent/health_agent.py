@@ -195,9 +195,11 @@ def main():
 
         col_profile_left, col_profile_right = st.columns(2)
 
-        # init so they're always defined
+        # init values
         height_cm = 0.0
         height_text = ""
+        weight_kg = 0.0
+        weight_text = ""
 
         with col_profile_left:
             age = st.number_input(
@@ -212,19 +214,21 @@ def main():
                 "Height Unit",
                 options=["cm", "ft/in"],
                 horizontal=True,
-                key="height_unit_radio",
+                key="height_unit",
                 label_visibility="collapsed",
             )
 
             if height_unit == "cm":
-                height_cm = st.number_input(
+                h_cm = st.number_input(
                     "Height (cm)",
                     min_value=100.0,
                     max_value=250.0,
                     step=0.1,
                     value=170.0,
+                    key="height_cm_input",
                 )
-                height_text = f"{height_cm:.1f} cm"
+                height_cm = h_cm
+                height_text = f"{h_cm:.1f} cm"
             else:
                 col_ft, col_in = st.columns(2)
                 with col_ft:
@@ -234,6 +238,7 @@ def main():
                         max_value=8.0,
                         step=1.0,
                         value=5.0,
+                        key="height_feet_input",
                     )
                 with col_in:
                     inches = st.number_input(
@@ -242,6 +247,7 @@ def main():
                         max_value=11.9,
                         step=0.5,
                         value=6.0,
+                        key="height_inches_input",
                     )
 
                 total_inches = feet * 12.0 + inches
@@ -265,29 +271,32 @@ def main():
                 "Weight Unit",
                 options=["kg", "lbs"],
                 horizontal=True,
-                key="weight_unit_radio",
+                key="weight_unit",
                 label_visibility="collapsed",
             )
 
             if weight_unit == "kg":
-                weight_kg = st.number_input(
+                w_kg = st.number_input(
                     "Weight (kg)",
                     min_value=20.0,
                     max_value=300.0,
                     step=0.1,
                     value=70.0,
+                    key="weight_kg_input",
                 )
-                weight_text = f"{weight_kg:.1f} kg"
+                weight_kg = w_kg
+                weight_text = f"{w_kg:.1f} kg"
             else:
-                weight_lbs = st.number_input(
+                w_lbs = st.number_input(
                     "Weight (lbs)",
                     min_value=44.0,
                     max_value=660.0,
                     step=0.5,
                     value=154.0,
+                    key="weight_lbs_input",
                 )
-                weight_kg = weight_lbs * 0.45359237
-                weight_text = f"{weight_lbs:.1f} lbs (~{weight_kg:.1f} kg)"
+                weight_kg = w_lbs * 0.45359237
+                weight_text = f"{w_lbs:.1f} lbs (~{weight_kg:.1f} kg)"
 
             sex = st.selectbox("Sex *", options=["Male", "Female", "Other"])
 
