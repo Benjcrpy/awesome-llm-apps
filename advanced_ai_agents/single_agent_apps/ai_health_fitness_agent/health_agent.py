@@ -7,7 +7,7 @@ from agno.models.openai.like import OpenAILike
 # ---------- PAGE CONFIG & BASIC STYLES ----------
 
 st.set_page_config(
-    page_title="AI Health & Fitness Planner",
+    page_title="AI Health & Fitness Planner v3",
     page_icon="️‍♂️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -54,7 +54,6 @@ st.markdown(
 
 # ---------- DISPLAY HELPERS ----------
 
-
 def display_dietary_plan(plan_content):
     with st.expander("🍽️ Your Personalized Dietary Plan", expanded=True):
         col1, col2 = st.columns([2, 1])
@@ -95,7 +94,6 @@ def display_fitness_plan(plan_content):
 
 # ---------- MAIN APP ----------
 
-
 def main():
     # Session state
     if "dietary_plan" not in st.session_state:
@@ -108,7 +106,7 @@ def main():
         st.session_state.plans_generated = False
 
     # Header
-    st.markdown("## ♂️ AI Health & Fitness Planner")
+    st.markdown("## ♂️ AI Health & Fitness Planner v3")
     st.markdown(
         "Get personalized dietary and fitness plans tailored to your goals, "
         "body metrics, available equipment, and dietary restrictions."
@@ -197,7 +195,6 @@ def main():
 
     col_profile_left, col_profile_right = st.columns(2)
 
-    # init vars
     height_cm = 0.0
     height_text = ""
     weight_kg = 0.0
@@ -322,7 +319,7 @@ def main():
             key="fitness_goals_select",
         )
 
-    st.markdown("</div>", unsafe_allow_html=True)  # close profile card
+    st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("")
 
     # =========================
@@ -379,7 +376,7 @@ def main():
             key="equipment_textarea",
         )
 
-    st.markdown("</div>", unsafe_allow_html=True)  # close dietary card
+    st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("")
     st.markdown("---")
 
