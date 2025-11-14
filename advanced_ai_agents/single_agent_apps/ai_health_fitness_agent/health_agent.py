@@ -4,6 +4,7 @@ from agno.run.agent import RunOutput
 from agno.models.google import Gemini
 from agno.models.openai.like import OpenAILike
 
+# ---------- PAGE CONFIG & BASIC STYLES ----------
 
 st.set_page_config(
     page_title="AI Health & Fitness Planner",
@@ -11,6 +12,57 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# Simple custom styling
+st.markdown(
+    """
+<style>
+/* Tighter main container */
+.block-container {
+    padding-top: 1.5rem;
+    padding-bottom: 2rem;
+    padding-left: 3rem;
+    padding-right: 3rem;
+}
+
+/* Card style */
+.app-card {
+    padding: 1.25rem 1.5rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(250, 250, 250, 0.06);
+    background: rgba(15, 15, 15, 0.85);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* Section titles */
+.section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+}
+
+/* Generate button */
+.stButton > button {
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+/* Q&A cards */
+.qa-card {
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(250, 250, 250, 0.08);
+    background: rgba(25, 25, 25, 0.9);
+    margin-bottom: 0.5rem;
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+
+# ---------- DISPLAY HELPERS ----------
 
 
 def display_dietary_plan(plan_content):
@@ -51,8 +103,11 @@ def display_fitness_plan(plan_content):
                     st.info(tip)
 
 
+# ---------- MAIN APP ----------
+
+
 def main():
-    # ---------------- Session state ----------------
+    # ----- Session state -----
     if "dietary_plan" not in st.session_state:
         st.session_state.dietary_plan = {}
     if "fitness_plan" not in st.session_state:
@@ -62,15 +117,16 @@ def main():
     if "plans_generated" not in st.session_state:
         st.session_state.plans_generated = False
 
-    # ---------------- Page header ----------------
+    # ----- Header -----
     st.markdown("## ♂️ AI Health & Fitness Planner")
     st.markdown(
         "Get personalized dietary and fitness plans tailored to your goals, "
         "body metrics, available equipment, and dietary restrictions."
     )
+    st.markdown("")
 
     # =========================
-    #         SIDEBAR
+    #           SIDEBAR
     # =========================
     with st.sidebar:
         st.header("⚙️ Settings")
@@ -90,12 +146,16 @@ def main():
             ollama_base_url = st.text_input(
                 "Ollama Base URL",
                 value="http://217.15.175.196:11434/v1",
-            )
+            ).strip()
 
             ollama_model_name = st.text_input(
                 "Ollama Model",
                 value="llama3.2:1b",
-            )
+            ).strip()
+
+            if not ollama_base_url or not ollama_model_name:
+                st.error("Please fill in both Ollama Base URL and Ollama Model.")
+                return
 
             active_model = OpenAILike(
                 id=ollama_model_name,
@@ -110,7 +170,7 @@ def main():
                 "Enter your Gemini API Key",
                 type="password",
                 help="This key is used to call Google Gemini models.",
-            )
+            ).strip()
 
             st.text_input(
                 "Optional: Gemini Base URL",
@@ -135,167 +195,201 @@ def main():
                 return
 
     # =========================
-    #       PROFILE SECTION
+    #       MAIN FORM
     # =========================
-    st.markdown("### 🧍 Your Profile")
+    with st.form("profile_form"):
+        # ---- Profile Card ----
+        with st.container():
+            st.markdown('<div class="app-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">🧍 Your Profile</div>', unsafe_allow_html=True)
 
-    col_profile_left, col_profile_right = st.columns(2)
+            col_profile_left, col_profile_right = st.columns(2)
 
-    with col_profile_left:
-        age = st.number_input(
-            "Age",
-            min_value=10,
-            max_value=100,
-            step=1,
-        )
-
-        st.markdown("#### Height")
-        height_unit = st.radio(
-            "Height Unit",
-            options=["cm", "ft/in"],
-            horizontal=True,
-            key="height_unit_radio",
-            label_visibility="collapsed",
-        )
-
-        if height_unit == "cm":
-            height_cm = st.number_input(
-                "Height (cm)",
-                min_value=100.0,
-                max_value=250.0,
-                step=0.1,
-                value=170.0,
-            )
-            height_text = f"{height_cm:.1f} cm"
-        else:
-            height_ft, height_in_col = st.columns([1, 1])
-            with height_ft:
-                ft = st.number_input("Feet", min_value=3, max_value=8, value=5)
-            with height_in_col:
-                inch = st.number_input(
-                    "Inches", min_value=0.0, max_value=11.9, step=0.1, value=7.0
+            with col_profile_left:
+                age = st.number_input(
+                    "Age *",
+                    min_value=10,
+                    max_value=100,
+                    step=1,
                 )
-            total_inches = ft * 12 + inch
-            height_cm = total_inches * 2.54
-            height_text = f"{ft} ft {inch:.1f} in (~{height_cm:.1f} cm)"
 
-        activity_level = st.selectbox(
-            "Activity Level",
-            options=[
-                "Sedentary",
-                "Lightly Active",
-                "Moderately Active",
-                "Very Active",
-                "Extremely Active",
-            ],
-        )
+                st.markdown("#### Height *")
+                height_unit = st.radio(
+                    "Height Unit",
+                    options=["cm", "ft/in"],
+                    horizontal=True,
+                    key="height_unit_radio",
+                    label_visibility="collapsed",
+                )
 
-    with col_profile_right:
-        st.markdown("#### Weight")
-        weight_unit = st.radio(
-            "Weight Unit",
-            options=["kg", "lbs"],
-            horizontal=True,
-            key="weight_unit_radio",
-            label_visibility="collapsed",
-        )
+                if height_unit == "cm":
+                    height_cm = st.number_input(
+                        "Height (cm)",
+                        min_value=100.0,
+                        max_value=250.0,
+                        step=0.1,
+                        value=170.0,
+                    )
+                    height_text = f"{height_cm:.1f} cm"
+                else:
+                    height_ft_col, height_in_col = st.columns([1, 1])
+                    with height_ft_col:
+                        ft = st.number_input("Feet", min_value=3, max_value=8, value=5)
+                    with height_in_col:
+                        inch = st.number_input(
+                            "Inches", min_value=0.0, max_value=11.9, step=0.1, value=7.0
+                        )
+                    total_inches = ft * 12 + inch
+                    height_cm = total_inches * 2.54
+                    height_text = f"{ft} ft {inch:.1f} in (~{height_cm:.1f} cm)"
 
-        if weight_unit == "kg":
-            weight_kg = st.number_input(
-                "Weight (kg)",
-                min_value=20.0,
-                max_value=300.0,
-                step=0.1,
-                value=70.0,
+                activity_level = st.selectbox(
+                    "Activity Level *",
+                    options=[
+                        "Sedentary",
+                        "Lightly Active",
+                        "Moderately Active",
+                        "Very Active",
+                        "Extremely Active",
+                    ],
+                )
+
+            with col_profile_right:
+                st.markdown("#### Weight *")
+                weight_unit = st.radio(
+                    "Weight Unit",
+                    options=["kg", "lbs"],
+                    horizontal=True,
+                    key="weight_unit_radio",
+                    label_visibility="collapsed",
+                )
+
+                if weight_unit == "kg":
+                    weight_kg = st.number_input(
+                        "Weight (kg)",
+                        min_value=20.0,
+                        max_value=300.0,
+                        step=0.1,
+                        value=70.0,
+                    )
+                    weight_text = f"{weight_kg:.1f} kg"
+                else:
+                    weight_lbs = st.number_input(
+                        "Weight (lbs)",
+                        min_value=44.0,
+                        max_value=660.0,
+                        step=0.5,
+                        value=154.0,
+                    )
+                    weight_kg = weight_lbs * 0.45359237
+                    weight_text = f"{weight_lbs:.1f} lbs (~{weight_kg:.1f} kg)"
+
+                sex = st.selectbox("Sex *", options=["Male", "Female", "Other"])
+
+                fitness_goals = st.selectbox(
+                    "Fitness Goals *",
+                    options=[
+                        "Lose Weight",
+                        "Gain Muscle",
+                        "Endurance",
+                        "Stay Fit",
+                        "Strength Training",
+                    ],
+                )
+
+            st.markdown("</div>", unsafe_allow_html=True)  # close card
+
+        st.markdown("")
+
+        # ---- Dietary + Equipment Card ----
+        with st.container():
+            st.markdown('<div class="app-card">', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="section-title">🥗 Dietary Preferences & Equipment</div>',
+                unsafe_allow_html=True,
             )
-            weight_text = f"{weight_kg:.1f} kg"
-        else:
-            weight_lbs = st.number_input(
-                "Weight (lbs)",
-                min_value=44.0,
-                max_value=660.0,
-                step=0.5,
-                value=154.0,
-            )
-            weight_kg = weight_lbs * 0.45359237
-            weight_text = f"{weight_lbs:.1f} lbs (~{weight_kg:.1f} kg)"
 
-        sex = st.selectbox("Sex", options=["Male", "Female", "Other"])
+            dietary_col, equipment_col = st.columns([3, 2])
 
-        fitness_goals = st.selectbox(
-            "Fitness Goals",
-            options=[
-                "Lose Weight",
-                "Gain Muscle",
-                "Endurance",
-                "Stay Fit",
-                "Strength Training",
-            ],
+            with dietary_col:
+                st.markdown("**Dietary Restrictions / Preferences * **")
+                st.caption("Select at least one option.")
+
+                dietary_options = [
+                    "No Red Meat",
+                    "No Pork",
+                    "No Chicken",
+                    "No Seafood",
+                    "Dairy Free",
+                    "Gluten Free",
+                    "Nut Free",
+                    "Egg Free",
+                    "Vegetarian",
+                    "Vegan",
+                    "Pescatarian",
+                    "Halal",
+                    "Kosher",
+                    "Low Carb",
+                    "Low Fat",
+                ]
+
+                col_a, col_b = st.columns(2)
+                dietary_restrictions = []
+
+                for i, opt in enumerate(dietary_options):
+                    target_col = col_a if i % 2 == 0 else col_b
+                    with target_col:
+                        if st.checkbox(opt, key=f"diet_{opt.replace(' ', '_').lower()}"):
+                            dietary_restrictions.append(opt)
+
+            with equipment_col:
+                equipment = st.text_area(
+                    "Available Equipment / Tools *",
+                    placeholder=(
+                        "Example: bodyweight only, pull-up bar, adjustable dumbbells, "
+                        "resistance bands, kettlebells, treadmill, air fryer, oven, etc."
+                    ),
+                    help="The workout and meal plan will adapt to the equipment you list here.",
+                    height=140,
+                )
+
+            st.markdown("</div>", unsafe_allow_html=True)  # close card
+
+        st.markdown("")
+        st.markdown("---")
+
+        submitted = st.form_submit_button(
+            "✨ Generate My Personalized Plan", use_container_width=True
         )
 
-    # =========================
-    #  DIETARY + EQUIPMENT UI
-    # =========================
-    st.markdown("### 🥗 Dietary Preferences & Equipment")
+    # ----- Validation & Plan Generation -----
+    if submitted:
+        errors = []
 
-    dietary_col, equipment_col = st.columns([3, 2])
+        if age is None:
+            errors.append("Please enter your age.")
+        if height_cm <= 0:
+            errors.append("Please enter a valid height.")
+        if weight_kg <= 0:
+            errors.append("Please enter a valid weight.")
+        if not activity_level:
+            errors.append("Please select your activity level.")
+        if not sex:
+            errors.append("Please select your sex.")
+        if not fitness_goals:
+            errors.append("Please select your fitness goal.")
+        if not dietary_restrictions:
+            errors.append("Please select at least one dietary restriction / preference.")
+        if not equipment or not equipment.strip():
+            errors.append("Please list at least one item in Available Equipment / Tools.")
 
-    with dietary_col:
-        st.markdown("**Dietary Restrictions / Preferences**")
-        st.caption("You can select one or multiple options.")
+        if errors:
+            for msg in errors:
+                st.error(msg)
+            st.stop()
 
-        dietary_options = [
-            "No Red Meat",
-            "No Pork",
-            "No Chicken",
-            "No Seafood",
-            "Dairy Free",
-            "Gluten Free",
-            "Nut Free",
-            "Egg Free",
-            "Vegetarian",
-            "Vegan",
-            "Pescatarian",
-            "Halal",
-            "Kosher",
-            "Low Carb",
-            "Low Fat",
-        ]
+        dietary_restrictions_text = ", ".join(dietary_restrictions)
 
-        # two-column checkbox layout
-        col_a, col_b = st.columns(2)
-        dietary_restrictions = []
-
-        for i, opt in enumerate(dietary_options):
-            target_col = col_a if i % 2 == 0 else col_b
-            with target_col:
-                if st.checkbox(opt, key=f"diet_{opt.replace(' ', '_').lower()}"):
-                    dietary_restrictions.append(opt)
-
-    with equipment_col:
-        equipment = st.text_area(
-            "Available Equipment / Tools",
-            placeholder=(
-                "Example: bodyweight only, pull-up bar, adjustable dumbbells, "
-                "resistance bands, kettlebells, treadmill, air fryer, oven, etc."
-            ),
-            help="The workout and meal plan will adapt to the equipment you list here.",
-            height=140,
-        )
-
-    dietary_restrictions_text = (
-        ", ".join(dietary_restrictions) if dietary_restrictions else "None specified"
-    )
-
-    # =========================
-    #       GENERATE PLANS
-    # =========================
-    st.markdown("---")
-    generate_clicked = st.button(
-        "✨ Generate My Personalized Plan", use_container_width=True
-    )
-
-    if generate_clicked:
         with st.spinner("Creating your personalized health and fitness routine..."):
             try:
                 dietary_agent = Agent(
@@ -343,7 +437,7 @@ User Profile:
 - Activity Level: {activity_level}
 - Fitness Goals: {fitness_goals}
 - Dietary Restrictions / Preferences: {dietary_restrictions_text}
-- Available Equipment / Tools: {equipment or "User did not specify any equipment (bodyweight only)."}
+- Available Equipment / Tools: {equipment.strip()}
 """
 
                 dietary_plan_response: RunOutput = dietary_agent.run(user_profile)
@@ -386,16 +480,19 @@ User Profile:
 
             except Exception as e:
                 st.error(f"❌ An error occurred: {e}")
+                st.stop()
 
     # =========================
-    #          Q&A
+    #            Q&A
     # =========================
     if st.session_state.plans_generated:
         st.markdown("### ❓ Questions about your plan?")
-        question_input = st.text_input("Ask a question about your plan:")
+        question_input = st.text_input("Ask a question about your plan (required to submit):")
 
         if st.button("💬 Get Answer"):
-            if question_input:
+            if not question_input or not question_input.strip():
+                st.error("Please type a question before requesting an answer.")
+            else:
                 with st.spinner("Generating the best answer for you..."):
                     dietary_plan = st.session_state.dietary_plan
                     fitness_plan = st.session_state.fitness_plan
@@ -404,11 +501,17 @@ User Profile:
                         f"Dietary Plan: {dietary_plan.get('meal_plan', '')}\n\n"
                         f"Fitness Plan: {fitness_plan.get('routine', '')}"
                     )
-                    full_context = f"{context}\n\nUser Question: {question_input}"
+                    full_context = f"{context}\n\nUser Question: {question_input.strip()}"
 
                     try:
                         qa_agent = Agent(
-                            model=active_model,
+                            model=OpenAILike(
+                                id="llama3.2:1b",
+                                base_url="http://217.15.175.196:11434/v1",
+                                api_key="ollama-no-key-required",
+                            )
+                            if provider.startswith("Ollama")
+                            else active_model,
                             debug_mode=True,
                             markdown=True,
                         )
@@ -421,15 +524,15 @@ User Profile:
 
                         st.session_state.qa_pairs.append((question_input, answer))
                     except Exception as e:
-                        st.error(
-                            f"❌ An error occurred while getting the answer: {e}"
-                        )
+                        st.error(f"❌ An error occurred while getting the answer: {e}")
 
     if st.session_state.qa_pairs:
         st.markdown("### 📚 Q&A History")
         for question, answer in st.session_state.qa_pairs:
-            st.markdown(f"**Q:** {question}")
-            st.markdown(f"**A:** {answer}")
+            st.markdown(
+                f'<div class="qa-card"><b>Q:</b> {question}<br/><b>A:</b> {answer}</div>',
+                unsafe_allow_html=True,
+            )
 
 
 if __name__ == "__main__":
