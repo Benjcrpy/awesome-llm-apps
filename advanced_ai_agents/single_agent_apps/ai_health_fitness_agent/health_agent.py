@@ -190,205 +190,207 @@ def main():
                 return
 
     # =========================
-    #       MAIN FORM
+    #       PROFILE CARD
     # =========================
-    with st.form("profile_form"):
-        # ---- Profile Card ----
-        st.markdown('<div class="app-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">🧍 Your Profile</div>', unsafe_allow_html=True)
+    st.markdown('<div class="app-card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🧍 Your Profile</div>', unsafe_allow_html=True)
 
-        col_profile_left, col_profile_right = st.columns(2)
+    col_profile_left, col_profile_right = st.columns(2)
 
-        # init vars so they always exist
-        height_cm = 0.0
-        height_text = ""
-        weight_kg = 0.0
-        weight_text = ""
+    # init vars
+    height_cm = 0.0
+    height_text = ""
+    weight_kg = 0.0
+    weight_text = ""
 
-        with col_profile_left:
-            age = st.number_input(
-                "Age *",
-                min_value=10,
-                max_value=100,
-                step=1,
-                key="age_input",
+    with col_profile_left:
+        age = st.number_input(
+            "Age *",
+            min_value=10,
+            max_value=100,
+            step=1,
+            key="age_input",
+        )
+
+        # ---------- HEIGHT ----------
+        st.markdown("#### Height *")
+        height_unit = st.radio(
+            "Height Unit",
+            options=["cm", "ft/in"],
+            horizontal=True,
+            key="height_unit_key",
+            label_visibility="collapsed",
+        )
+
+        if height_unit == "cm":
+            h_cm = st.number_input(
+                "Height (cm)",
+                min_value=100.0,
+                max_value=250.0,
+                step=0.1,
+                value=170.0,
+                key="height_cm_input",
             )
-
-            # ---------- HEIGHT ----------
-            st.markdown("#### Height *")
-            height_unit = st.radio(
-                "Height Unit",
-                options=["cm", "ft/in"],
-                horizontal=True,
-                key="height_unit_key",
-                label_visibility="collapsed",
-            )
-
-            if height_unit == "cm":
-                h_cm = st.number_input(
-                    "Height (cm)",
-                    min_value=100.0,
-                    max_value=250.0,
-                    step=0.1,
-                    value=170.0,
-                    key="height_cm_input",
+            height_cm = h_cm
+            height_text = f"{h_cm:.1f} cm"
+        else:
+            col_ft, col_in = st.columns(2)
+            with col_ft:
+                height_ft = st.number_input(
+                    "Height (ft)",
+                    min_value=3.0,
+                    max_value=8.0,
+                    step=1.0,
+                    value=5.0,
+                    key="height_ft_input",
                 )
-                height_cm = h_cm
-                height_text = f"{h_cm:.1f} cm"
-            else:
-                col_ft, col_in = st.columns(2)
-                with col_ft:
-                    height_ft = st.number_input(
-                        "Height (ft)",
-                        min_value=3.0,
-                        max_value=8.0,
-                        step=1.0,
-                        value=5.0,
-                        key="height_ft_input",
-                    )
-                with col_in:
-                    height_in = st.number_input(
-                        "Inches",
-                        min_value=0.0,
-                        max_value=11.9,
-                        step=0.5,
-                        value=6.0,
-                        key="height_in_input",
-                    )
-
-                total_inches = height_ft * 12.0 + height_in
-                height_cm = total_inches * 2.54
-                height_text = f"{height_ft:g} ft {height_in:g} in (~{height_cm:.1f} cm)"
-
-            activity_level = st.selectbox(
-                "Activity Level *",
-                options=[
-                    "Sedentary",
-                    "Lightly Active",
-                    "Moderately Active",
-                    "Very Active",
-                    "Extremely Active",
-                ],
-                key="activity_level_select",
-            )
-
-        with col_profile_right:
-            # ---------- WEIGHT ----------
-            st.markdown("#### Weight *")
-            weight_unit = st.radio(
-                "Weight Unit",
-                options=["kg", "lbs"],
-                horizontal=True,
-                key="weight_unit_key",
-                label_visibility="collapsed",
-            )
-
-            if weight_unit == "kg":
-                w_kg = st.number_input(
-                    "Weight (kg)",
-                    min_value=20.0,
-                    max_value=300.0,
-                    step=0.1,
-                    value=70.0,
-                    key="weight_kg_input",
-                )
-                weight_kg = w_kg
-                weight_text = f"{w_kg:.1f} kg"
-            else:
-                w_lbs = st.number_input(
-                    "Weight (lbs)",
-                    min_value=44.0,
-                    max_value=660.0,
+            with col_in:
+                height_in = st.number_input(
+                    "Inches",
+                    min_value=0.0,
+                    max_value=11.9,
                     step=0.5,
-                    value=154.0,
-                    key="weight_lbs_input",
+                    value=6.0,
+                    key="height_in_input",
                 )
-                weight_kg = w_lbs * 0.45359237
-                weight_text = f"{w_lbs:.1f} lbs (~{weight_kg:.1f} kg)"
 
-            sex = st.selectbox(
-                "Sex *",
-                options=["Male", "Female", "Other"],
-                key="sex_select",
-            )
+            total_inches = height_ft * 12.0 + height_in
+            height_cm = total_inches * 2.54
+            height_text = f"{height_ft:g} ft {height_in:g} in (~{height_cm:.1f} cm)"
 
-            fitness_goals = st.selectbox(
-                "Fitness Goals *",
-                options=[
-                    "Lose Weight",
-                    "Gain Muscle",
-                    "Endurance",
-                    "Stay Fit",
-                    "Strength Training",
-                ],
-                key="fitness_goals_select",
-            )
-
-        st.markdown("</div>", unsafe_allow_html=True)  # close profile card
-        st.markdown("")
-
-        # ---- Dietary + Equipment Card ----
-        st.markdown('<div class="app-card">', unsafe_allow_html=True)
-        st.markdown(
-            '<div class="section-title">🥗 Dietary Preferences & Equipment</div>',
-            unsafe_allow_html=True,
+        activity_level = st.selectbox(
+            "Activity Level *",
+            options=[
+                "Sedentary",
+                "Lightly Active",
+                "Moderately Active",
+                "Very Active",
+                "Extremely Active",
+            ],
+            key="activity_level_select",
         )
 
-        dietary_col, equipment_col = st.columns([3, 2])
-
-        with dietary_col:
-            st.markdown("**Dietary Restrictions / Preferences * **")
-            st.caption("Select at least one option.")
-
-            dietary_options = [
-                "No Red Meat",
-                "No Pork",
-                "No Chicken",
-                "No Seafood",
-                "Dairy Free",
-                "Gluten Free",
-                "Nut Free",
-                "Egg Free",
-                "Vegetarian",
-                "Vegan",
-                "Pescatarian",
-                "Halal",
-                "Kosher",
-                "Low Carb",
-                "Low Fat",
-            ]
-
-            col_a, col_b = st.columns(2)
-            dietary_restrictions = []
-
-            for i, opt in enumerate(dietary_options):
-                target_col = col_a if i % 2 == 0 else col_b
-                with target_col:
-                    if st.checkbox(opt, key=f"diet_{opt.replace(' ', '_').lower()}"):
-                        dietary_restrictions.append(opt)
-
-        with equipment_col:
-            equipment = st.text_area(
-                "Available Equipment / Tools *",
-                placeholder=(
-                    "Example: bodyweight only, pull-up bar, adjustable dumbbells, "
-                    "resistance bands, kettlebells, treadmill, air fryer, oven, etc."
-                ),
-                help="The workout and meal plan will adapt to the equipment you list here.",
-                height=140,
-                key="equipment_textarea",
-            )
-
-        st.markdown("</div>", unsafe_allow_html=True)  # close dietary card
-        st.markdown("")
-        st.markdown("---")
-
-        submitted = st.form_submit_button(
-            "✨ Generate My Personalized Plan", use_container_width=True
+    with col_profile_right:
+        # ---------- WEIGHT ----------
+        st.markdown("#### Weight *")
+        weight_unit = st.radio(
+            "Weight Unit",
+            options=["kg", "lbs"],
+            horizontal=True,
+            key="weight_unit_key",
+            label_visibility="collapsed",
         )
 
-    # ----- Validation & Plan Generation -----
-    if submitted:
+        if weight_unit == "kg":
+            w_kg = st.number_input(
+                "Weight (kg)",
+                min_value=20.0,
+                max_value=300.0,
+                step=0.1,
+                value=70.0,
+                key="weight_kg_input",
+            )
+            weight_kg = w_kg
+            weight_text = f"{w_kg:.1f} kg"
+        else:
+            w_lbs = st.number_input(
+                "Weight (lbs)",
+                min_value=44.0,
+                max_value=660.0,
+                step=0.5,
+                value=154.0,
+                key="weight_lbs_input",
+            )
+            weight_kg = w_lbs * 0.45359237
+            weight_text = f"{w_lbs:.1f} lbs (~{weight_kg:.1f} kg)"
+
+        sex = st.selectbox(
+            "Sex *",
+            options=["Male", "Female", "Other"],
+            key="sex_select",
+        )
+
+        fitness_goals = st.selectbox(
+            "Fitness Goals *",
+            options=[
+                "Lose Weight",
+                "Gain Muscle",
+                "Endurance",
+                "Stay Fit",
+                "Strength Training",
+            ],
+            key="fitness_goals_select",
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)  # close profile card
+    st.markdown("")
+
+    # =========================
+    #  DIETARY + EQUIPMENT
+    # =========================
+    st.markdown('<div class="app-card">', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-title">🥗 Dietary Preferences & Equipment</div>',
+        unsafe_allow_html=True,
+    )
+
+    dietary_col, equipment_col = st.columns([3, 2])
+
+    with dietary_col:
+        st.markdown("**Dietary Restrictions / Preferences * **")
+        st.caption("Select at least one option.")
+
+        dietary_options = [
+            "No Red Meat",
+            "No Pork",
+            "No Chicken",
+            "No Seafood",
+            "Dairy Free",
+            "Gluten Free",
+            "Nut Free",
+            "Egg Free",
+            "Vegetarian",
+            "Vegan",
+            "Pescatarian",
+            "Halal",
+            "Kosher",
+            "Low Carb",
+            "Low Fat",
+        ]
+
+        col_a, col_b = st.columns(2)
+        dietary_restrictions = []
+
+        for i, opt in enumerate(dietary_options):
+            target_col = col_a if i % 2 == 0 else col_b
+            with target_col:
+                if st.checkbox(opt, key=f"diet_{opt.replace(' ', '_').lower()}"):
+                    dietary_restrictions.append(opt)
+
+    with equipment_col:
+        equipment = st.text_area(
+            "Available Equipment / Tools *",
+            placeholder=(
+                "Example: bodyweight only, pull-up bar, adjustable dumbbells, "
+                "resistance bands, kettlebells, treadmill, air fryer, oven, etc."
+            ),
+            help="The workout and meal plan will adapt to the equipment you list here.",
+            height=140,
+            key="equipment_textarea",
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)  # close dietary card
+    st.markdown("")
+    st.markdown("---")
+
+    # =========================
+    #   GENERATE BUTTON
+    # =========================
+    generate_clicked = st.button(
+        "✨ Generate My Personalized Plan", use_container_width=True, key="generate_btn"
+    )
+
+    if generate_clicked:
         errors = []
 
         if height_cm <= 0:
