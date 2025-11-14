@@ -10,8 +10,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-st.markdown(""" """, unsafe_allow_html=True)
-
 
 def display_dietary_plan(plan_content):
     with st.expander("🍽️ Your Personalized Dietary Plan", expanded=True):
@@ -52,7 +50,7 @@ def display_fitness_plan(plan_content):
 
 
 def main():
-    # Session state init
+    # Session state initialization
     if "dietary_plan" not in st.session_state:
         st.session_state.dietary_plan = {}
     if "fitness_plan" not in st.session_state:
@@ -65,8 +63,8 @@ def main():
     st.title("️‍♂️ AI Health & Fitness Planner")
     st.markdown(
         """
-Get personalized dietary and fitness plans tailored to your goals and preferences.  
-Our AI-powered system considers your unique profile to create the perfect plan for you.
+Get personalized dietary and fitness plans tailored to your goals, body metrics,
+available equipment, and dietary restrictions.
 """,
         unsafe_allow_html=True,
     )
@@ -78,26 +76,26 @@ Our AI-powered system considers your unique profile to create the perfect plan f
         gemini_api_key = st.text_input(
             "Gemini API Key",
             type="password",
-            help="Enter your Gemini API key to access the service",
+            help="Enter your Gemini API key to access the service.",
         )
 
         if not gemini_api_key:
-            st.warning("⚠️ Please enter your Gemini API Key to proceed")
-            st.markdown(
-                "[Get your API key here](https://aistudio.google.com/apikey)"
-            )
+            st.warning("⚠️ Please enter your Gemini API Key to proceed.")
+            st.markdown("[Get your API key here](https://aistudio.google.com/apikey)")
             return
 
         st.success("API Key accepted! ✅")
 
         try:
-            # gamit natin stable na model
+            # Stable model
             gemini_model = Gemini(id="gemini-2.0-flash", api_key=gemini_api_key)
         except Exception as e:
             st.error(f"❌ Error initializing Gemini model: {e}")
             return
 
-    # User profile
+    # =========================
+    #       USER PROFILE
+    # =========================
     st.header("🧍‍♂️ Your Profile")
 
     col1, col2 = st.columns(2)
@@ -108,14 +106,46 @@ Our AI-powered system considers your unique profile to create the perfect plan f
             min_value=10,
             max_value=100,
             step=1,
-            help="Enter your age",
+            help="Enter your age.",
         )
-        height = st.number_input(
-            "Height (cm)",
-            min_value=100.0,
-            max_value=250.0,
-            step=0.1,
+
+        # HEIGHT with unit toggle
+        st.markdown("#### Height")
+        height_unit = st.radio(
+            "Height Unit",
+            options=["cm", "ft/in"],
+            horizontal=True,
+            key="height_unit_radio",
+            label_visibility="collapsed",
         )
+
+        if height_unit == "cm":
+            height_cm = st.number_input(
+                "Height (cm)",
+                min_value=100.0,
+                max_value=250.0,
+                step=0.1,
+                value=170.0,
+            )
+            height_text = f"{height_cm:.1f} cm"
+        else:
+            height_ft = st.number_input(
+                "Height (ft)",
+                min_value=3,
+                max_value=8,
+                value=5,
+            )
+            height_in = st.number_input(
+                "Additional inches",
+                min_value=0.0,
+                max_value=11.9,
+                step=0.1,
+                value=7.0,
+            )
+            total_inches = height_ft * 12 + height_in
+            height_cm = total_inches * 2.54
+            height_text = f"{height_ft} ft {height_in:.1f} in (~{height_cm:.1f} cm)"
+
         activity_level = st.selectbox(
             "Activity Level",
             options=[
@@ -125,41 +155,81 @@ Our AI-powered system considers your unique profile to create the perfect plan f
                 "Very Active",
                 "Extremely Active",
             ],
-            help="Choose your typical activity level",
-        )
-        dietary_preferences = st.selectbox(
-            "Dietary Preferences",
-            options=[
-                "Vegetarian",
-                "Keto",
-                "Gluten Free",
-                "Low Carb",
-                "Dairy Free",
-            ],
-            help="Select your dietary preference",
+            help="Choose your typical activity level.",
         )
 
-        # 🔥 NEW: equipment/tools input
+        # DIETARY RESTRICTIONS as checkboxes
+        st.markdown("#### Dietary Restrictions / Preferences")
+        st.caption("You can select one or multiple options.")
+        dietary_options = [
+            "No Red Meat",
+            "No Pork",
+            "No Chicken",
+            "No Seafood",
+            "Dairy Free",
+            "Gluten Free",
+            "Nut Free",
+            "Egg Free",
+            "Vegetarian",
+            "Vegan",
+            "Pescatarian",
+            "Halal",
+            "Kosher",
+            "Low Carb",
+            "Low Fat",
+        ]
+        dietary_restrictions = []
+        for opt in dietary_options:
+            if st.checkbox(opt, key=f"diet_{opt.replace(' ', '_').lower()}"):
+                dietary_restrictions.append(opt)
+
+        # Equipment / tools
         equipment = st.text_area(
             "Available Equipment / Tools",
             placeholder=(
-                "Hal: bodyweight lang, dumbbells, barbell, resistance bands, "
-                "treadmill, stationary bike, pull-up bar, kettlebell, etc."
+                "Example: bodyweight only, adjustable dumbbells, barbell, resistance bands, "
+                "treadmill, stationary bike, pull-up bar, kettlebells, air fryer, oven, "
+                "microwave, blender, meal-prep containers, etc."
             ),
             help=(
-                "Ilahad lahat ng equipment na meron ka sa gym o bahay. "
-                "Gagamitin ito para yung workout at meal prep ay swak sa tools mo."
+                "List all workout and kitchen tools you have. "
+                "The plan will be adapted to the tools you actually own."
             ),
         )
 
     with col2:
-        weight = st.number_input(
-            "Weight (kg)",
-            min_value=20.0,
-            max_value=300.0,
-            step=0.1,
+        # WEIGHT with unit toggle
+        st.markdown("#### Weight")
+        weight_unit = st.radio(
+            "Weight Unit",
+            options=["kg", "lbs"],
+            horizontal=True,
+            key="weight_unit_radio",
+            label_visibility="collapsed",
         )
+
+        if weight_unit == "kg":
+            weight_kg = st.number_input(
+                "Weight (kg)",
+                min_value=20.0,
+                max_value=300.0,
+                step=0.1,
+                value=70.0,
+            )
+            weight_text = f"{weight_kg:.1f} kg"
+        else:
+            weight_lbs = st.number_input(
+                "Weight (lbs)",
+                min_value=44.0,
+                max_value=660.0,
+                step=0.5,
+                value=154.0,
+            )
+            weight_kg = weight_lbs * 0.45359237
+            weight_text = f"{weight_lbs:.1f} lbs (~{weight_kg:.1f} kg)"
+
         sex = st.selectbox("Sex", options=["Male", "Female", "Other"])
+
         fitness_goals = st.selectbox(
             "Fitness Goals",
             options=[
@@ -172,67 +242,78 @@ Our AI-powered system considers your unique profile to create the perfect plan f
             help="What do you want to achieve?",
         )
 
+    dietary_restrictions_text = (
+        ", ".join(dietary_restrictions) if dietary_restrictions else "None specified"
+    )
+
     if st.button("✨ Generate My Personalized Plan", use_container_width=True):
-        with st.spinner("Creating your perfect health and fitness routine..."):
+        with st.spinner("Creating your personalized health and fitness routine..."):
             try:
                 # Dietary agent
                 dietary_agent = Agent(
                     name="Dietary Expert",
-                    role="Provides personalized dietary recommendations",
+                    role="Provides personalized dietary recommendations.",
                     model=gemini_model,
                     instructions=[
-                        "Consider the user's input, including dietary restrictions and preferences.",
+                        "Consider the user's full profile, including age, sex, weight, "
+                        "height, activity level, fitness goals, dietary restrictions, "
+                        "and available equipment/tools.",
+                        "Respect ALL dietary restrictions and preferences listed by the user. "
+                        "Do not include any ingredient that violates those restrictions "
+                        "(e.g., no red meat if the user selected 'No Red Meat').",
                         "Take into account the user's available kitchen tools and equipment "
                         "(e.g., air fryer, oven, microwave, blender, meal-prep containers) "
                         "when suggesting meals and preparation methods.",
-                        "Suggest a detailed meal plan for the day, including breakfast, lunch, "
-                        "dinner, and snacks.",
-                        "Provide a brief explanation of why the plan is suited to the user's goals.",
-                        "Focus on clarity, coherence, and quality of the recommendations.",
+                        "Suggest a detailed meal plan for the day, including breakfast, "
+                        "lunch, dinner, and snacks.",
+                        "Provide a clear explanation of why the plan is suited to the user's goals.",
+                        "Focus on clarity, coherence, and practicality.",
                     ],
                 )
 
                 # Fitness agent
                 fitness_agent = Agent(
                     name="Fitness Expert",
-                    role="Provides personalized fitness recommendations",
+                    role="Provides personalized fitness recommendations.",
                     model=gemini_model,
                     instructions=[
                         "Provide exercises tailored to the user's goals and fitness level.",
                         "ONLY prescribe exercises that can realistically be performed with the "
                         "user's available equipment and bodyweight. Avoid suggesting machines or "
                         "tools they did not list.",
+                        "If the user has no equipment specified, focus on bodyweight-friendly "
+                        "exercises only.",
                         "Include warm-up, main workout, and cool-down exercises.",
                         "Explain the benefits of each recommended exercise.",
                         "Ensure the plan is actionable, detailed, and safe for the given profile.",
                     ],
                 )
 
-                # User profile passed to agents – kasama na equipment
+                # User profile passed to agents
                 user_profile = f"""
 User Profile:
 - Age: {age}
-- Weight: {weight} kg
-- Height: {height} cm
 - Sex: {sex}
+- Weight: {weight_text} (≈ {weight_kg:.1f} kg)
+- Height: {height_text}
 - Activity Level: {activity_level}
-- Dietary Preferences: {dietary_preferences}
 - Fitness Goals: {fitness_goals}
-- Available Equipment / Tools: {equipment or "User did not specify any equipment (bodyweight only)"}
+- Dietary Restrictions / Preferences: {dietary_restrictions_text}
+- Available Equipment / Tools: {equipment or "User did not specify any equipment (bodyweight only)."}
 """
 
                 dietary_plan_response: RunOutput = dietary_agent.run(user_profile)
                 dietary_plan = {
                     "why_this_plan_works": (
-                        "High Protein, Healthy Fats, Moderate Carbohydrates, and "
-                        "Caloric Balance tailored to the user's goals and equipment."
+                        "This plan is tailored to the user's goals, metrics, dietary "
+                        "restrictions, and available tools."
                     ),
                     "meal_plan": dietary_plan_response.content,
                     "important_considerations": """
 - Hydration: Drink plenty of water throughout the day.
 - Electrolytes: Monitor sodium, potassium, and magnesium levels.
-- Fiber: Ensure adequate intake through vegetables and fruits.
-- Listen to your body: Adjust portion sizes as needed.
+- Fiber: Ensure adequate intake through vegetables and fruits (within restrictions).
+- Listen to your body: Adjust portion sizes and food choices as needed.
 """,
                 }
 
@@ -266,11 +347,11 @@ User Profile:
     if st.session_state.plans_generated:
         st.header("❓ Questions about your plan?")
 
-        question_input = st.text_input("What would you like to know?")
+        question_input = st.text_input("Ask a question about your plan:")
 
         if st.button("💬 Get Answer"):
             if question_input:
-                with st.spinner("Finding the best answer for you..."):
+                with st.spinner("Generating the best answer for you..."):
                     dietary_plan = st.session_state.dietary_plan
                     fitness_plan = st.session_state.fitness_plan
 
@@ -291,15 +372,11 @@ User Profile:
                         if hasattr(run_response, "content"):
                             answer = run_response.content
                         else:
-                            answer = (
-                                "Sorry, I couldn't generate a response at this time."
-                            )
+                            answer = "Sorry, I couldn't generate a response at this time."
 
                         st.session_state.qa_pairs.append((question_input, answer))
                     except Exception as e:
-                        st.error(
-                            f"❌ An error occurred while getting the answer: {e}"
-                        )
+                        st.error(f"❌ An error occurred while getting the answer: {e}")
 
     # Q&A history
     if st.session_state.qa_pairs:
