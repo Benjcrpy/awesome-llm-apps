@@ -13,7 +13,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Simple custom styling
 st.markdown(
     """
 <style>
@@ -98,7 +97,7 @@ def display_fitness_plan(plan_content):
 
 
 def main():
-    # ----- Session state -----
+    # Session state
     if "dietary_plan" not in st.session_state:
         st.session_state.dietary_plan = {}
     if "fitness_plan" not in st.session_state:
@@ -108,7 +107,7 @@ def main():
     if "plans_generated" not in st.session_state:
         st.session_state.plans_generated = False
 
-    # ----- Header -----
+    # Header
     st.markdown("## ♂️ AI Health & Fitness Planner")
     st.markdown(
         "Get personalized dietary and fitness plans tailored to your goals, "
@@ -127,6 +126,7 @@ def main():
         provider = st.selectbox(
             "Choose an LLM Provider",
             options=["Ollama (no key required)", "Gemini"],
+            key="llm_provider_select",
         )
 
         active_model = None
@@ -137,11 +137,13 @@ def main():
             ollama_base_url = st.text_input(
                 "Ollama Base URL",
                 value="http://217.15.175.196:11434/v1",
+                key="ollama_base_url",
             ).strip()
 
             ollama_model_name = st.text_input(
                 "Ollama Model",
                 value="llama3.2:1b",
+                key="ollama_model_name",
             ).strip()
 
             if not ollama_base_url or not ollama_model_name:
@@ -161,12 +163,14 @@ def main():
                 "Enter your Gemini API Key",
                 type="password",
                 help="This key is used to call Google Gemini models.",
+                key="gemini_api_key",
             ).strip()
 
             st.text_input(
                 "Optional: Gemini Base URL",
                 placeholder="leave blank for default Gemini endpoint",
                 help="Most users can leave this empty.",
+                key="gemini_base_url",
             )
 
             if not gemini_api_key:
@@ -207,6 +211,7 @@ def main():
                 min_value=10,
                 max_value=100,
                 step=1,
+                key="age_input",
             )
 
             # ---------- HEIGHT ----------
@@ -215,7 +220,7 @@ def main():
                 "Height Unit",
                 options=["cm", "ft/in"],
                 horizontal=True,
-                key="height_unit",
+                key="height_unit_key",
                 label_visibility="collapsed",
             )
 
@@ -264,6 +269,7 @@ def main():
                     "Very Active",
                     "Extremely Active",
                 ],
+                key="activity_level_select",
             )
 
         with col_profile_right:
@@ -273,7 +279,7 @@ def main():
                 "Weight Unit",
                 options=["kg", "lbs"],
                 horizontal=True,
-                key="weight_unit",
+                key="weight_unit_key",
                 label_visibility="collapsed",
             )
 
@@ -300,7 +306,11 @@ def main():
                 weight_kg = w_lbs * 0.45359237
                 weight_text = f"{w_lbs:.1f} lbs (~{weight_kg:.1f} kg)"
 
-            sex = st.selectbox("Sex *", options=["Male", "Female", "Other"])
+            sex = st.selectbox(
+                "Sex *",
+                options=["Male", "Female", "Other"],
+                key="sex_select",
+            )
 
             fitness_goals = st.selectbox(
                 "Fitness Goals *",
@@ -311,6 +321,7 @@ def main():
                     "Stay Fit",
                     "Strength Training",
                 ],
+                key="fitness_goals_select",
             )
 
         st.markdown("</div>", unsafe_allow_html=True)  # close profile card
@@ -365,6 +376,7 @@ def main():
                 ),
                 help="The workout and meal plan will adapt to the equipment you list here.",
                 height=140,
+                key="equipment_textarea",
             )
 
         st.markdown("</div>", unsafe_allow_html=True)  # close dietary card
@@ -403,7 +415,6 @@ def main():
 
         with st.spinner("Creating your personalized health and fitness routine..."):
             try:
-                # Dietary agent
                 dietary_agent = Agent(
                     name="Dietary Expert",
                     role="Provides personalized dietary recommendations.",
@@ -423,7 +434,6 @@ def main():
                     ],
                 )
 
-                # Fitness agent
                 fitness_agent = Agent(
                     name="Fitness Expert",
                     role="Provides personalized fitness recommendations.",
@@ -500,9 +510,12 @@ User Profile:
     # =========================
     if st.session_state.plans_generated:
         st.markdown("### ❓ Questions about your plan?")
-        question_input = st.text_input("Ask a question about your plan (required to submit):")
+        question_input = st.text_input(
+            "Ask a question about your plan (required to submit):",
+            key="qa_question_input",
+        )
 
-        if st.button("💬 Get Answer"):
+        if st.button("💬 Get Answer", key="qa_submit_button"):
             if not question_input or not question_input.strip():
                 st.error("Please type a question before requesting an answer.")
             else:
